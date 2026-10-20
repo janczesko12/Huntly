@@ -658,6 +658,7 @@
     window.addEventListener('offline', function () { setConnection('BRAK INTERNETU', false); });
   }
 
+  setupInstallRequirement();
   wireUi();
   initMap();
   state.authReady = initFirebase().then(function () {
