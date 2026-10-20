@@ -129,15 +129,38 @@
   function updateMyPosition() {
     if (!state.roomCode || !state.db || !state.uid || !state.gps) return;
     const ref = state.db.collection('rooms').doc(state.roomCode).collection('players').doc(state.uid);
+    const wasOutside = !!(state.me && state.me.outsideArea);
+    const outsideArea = isOutsidePlayArea(state.gps, state.room);
     ref.update({
       lat: state.gps.lat,
       lng: state.gps.lng,
       accuracy: state.gps.accuracy,
+      outsideArea: outsideArea,
       locationUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       onlineAt: firebase.firestore.FieldValue.serverTimestamp()
     }).catch(function (error) {
       if (error.code !== 'not-found') console.warn('GPS sync:', error);
     });
+    if (state.me) state.me.outsideArea = outsideArea;
+    if (outsideArea && !wasOutside && state.room && state.room.status === 'running') {
+      toast('Poza obszarem gry', 'Szukający będzie widział Twoją lokalizację na bieżąco.', 'error');
+    } else if (!outsideArea && wasOutside) {
+      toast('Wrócono do obszaru', 'Lokalizacja wraca do zwykłych zasad ujawniania.', 'success');
+    }
+  }
+
+  function distanceMeters(a, b) {
+    if (!a || !b || typeof a.lat !== 'number' || typeof a.lng !== 'number' || typeof b.lat !== 'number' || typeof b.lng !== 'number') return 0;
+    const rad = function (value) { return value * Math.PI / 180; };
+    const dLat = rad(b.lat - a.lat);
+    const dLng = rad(b.lng - a.lng);
+    const x = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return 6371000 * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+  }
+  function isOutsidePlayArea(position, room) {
+    if (!room || typeof room.areaCenterLat !== 'number' || typeof room.areaCenterLng !== 'number') return false;
+    const radius = Math.max(50, Number(room.areaRadiusMeters) || 500);
+    return distanceMeters(position, { lat: room.areaCenterLat, lng: room.areaCenterLng }) > radius;
   }
 
   function beginGps() {
@@ -199,6 +222,9 @@
         updatedAt: now,
         escapeSeconds: 30,
         roundMinutes: 20,
+        areaCenterLat: state.gps.lat,
+        areaCenterLng: state.gps.lng,
+        areaRadiusMeters: 500,
         startedAt: null,
         escapeEndsAt: null,
         endedAt: null
@@ -316,6 +342,7 @@
       $('gameActions').classList.toggle('hidden', state.room.status === 'lobby' || state.room.status === 'ended');
       $('escapeSeconds').value = String(state.room.escapeSeconds || 30);
       $('roundMinutes').value = String(state.room.roundMinutes || 20);
+      $('areaRadiusMeters').value = String(state.room.areaRadiusMeters || 500);
       tickTimer();
     }, function (error) { toast('Błąd synchronizacji pokoju', friendlyError(error), 'error'); });
     state.playersUnsub = ref.collection('players').onSnapshot(function (snap) {
@@ -372,6 +399,7 @@
     if (!state.room) return false;
     if (player.uid === state.uid || player.role === 'seeker') return true;
     if (player.alive === false) return true;
+    if (player.outsideArea && state.me && state.me.role === 'seeker') return true;
     if (state.room.status === 'lobby' || state.room.status === 'escape') return false;
     if (state.room.status !== 'running') return true;
     const revealEvery = Math.max(10, Number(state.room.revealEverySeconds || 30));
@@ -438,7 +466,7 @@
       const name = document.createElement('strong');
       name.textContent = (player.name || 'Gracz') + (player.uid === state.uid ? ' (Ty)' : '');
       const role = document.createElement('span');
-      role.textContent = player.role === 'seeker' ? 'Szukający' : (player.alive === false ? 'Złapany' : 'Uciekający');
+      role.textContent = player.role === 'seeker' ? 'Szukający' : (player.alive === false ? 'Złapany' : (player.outsideArea ? 'Poza obszarem • GPS dla szukającego' : 'Uciekający'));
       info.appendChild(name); info.appendChild(role);
       row.appendChild(icon); row.appendChild(info);
       if (state.me && state.me.role === 'seeker' && player.role === 'runner' && player.alive !== false && state.room && state.room.status === 'running') {
@@ -472,12 +500,14 @@
       const roundMinutes = Number($('roundMinutes').value) || 20;
       const revealEverySeconds = Number($('revealEverySeconds').value) || 30;
       const revealDurationSeconds = Number($('revealDurationSeconds').value) || 5;
+      const areaRadiusMeters = Number($('areaRadiusMeters').value) || 500;
       const now = Date.now();
       await state.db.collection('rooms').doc(state.roomCode).update({
         status: 'escape', escapeSeconds: escapeSeconds, roundMinutes: roundMinutes,
         startedAtMs: now, escapeEndsAtMs: now + escapeSeconds * 1000,
         roundEndsAtMs: now + (escapeSeconds + roundMinutes * 60) * 1000,
         revealEverySeconds: revealEverySeconds, revealDurationSeconds: revealDurationSeconds,
+        areaRadiusMeters: areaRadiusMeters,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
       toast('Gra wystartowała', 'Uciekający mają ' + escapeSeconds + ' s na ukrycie się.', 'success');
