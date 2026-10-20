@@ -12,7 +12,29 @@
   <title>Huntly — outdoor chase</title>
 </head>
 <body>
-  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+
+  <section id="installGate" class="install-gate" aria-labelledby="installTitle">
+    <div class="install-card">
+      <div class="install-brand"><span class="install-mark">H</span><span>HUNTLY<span class="brand-dot">.</span><small>THE OUTDOOR CHASE</small></span></div>
+      <div class="install-eyebrow"><span class="install-live"></span> WYMAGANA APLIKACJA PWA</div>
+      <h1 id="installTitle">Gra zaczyna się<br><em>na Twoim ekranie.</em></h1>
+      <p class="install-lead">Aby dołączyć do rozgrywki, zainstaluj Huntly i otwórz je z ikony na ekranie głównym. To pomaga utrzymać pełny widok mapy i szybki dostęp do gry.</p>
+      <div class="install-benefits">
+        <div><span>01</span><strong>Pełny ekran</strong><small>Bez paska adresu podczas gry</small></div>
+        <div><span>02</span><strong>Szybki start</strong><small>Ikona Huntly na ekranie</small></div>
+        <div><span>03</span><strong>Gotowość na teren</strong><small>Łatwiejszy powrót do pokoju</small></div>
+      </div>
+      <button id="installAppBtn" class="button button-primary install-main-button" type="button">Zainstaluj Huntly <span class="button-arrow">↗</span></button>
+      <div id="installInstructions" class="install-instructions">
+        <strong id="installInstructionTitle">Jak dodać Huntly?</strong>
+        <p id="installInstructionText">Na Androidzie otwórz menu przeglądarki i wybierz „Zainstaluj aplikację” lub „Dodaj do ekranu głównego”. Na iPhonie otwórz tę stronę w Safari, naciśnij Udostępnij, a następnie „Dodaj do ekranu początkowego”.</p>
+      </div>
+      <button id="checkInstalledBtn" class="install-check-button" type="button">Już zainstalowano — sprawdź ponownie</button>
+      <p id="installStatus" class="install-status" role="status" aria-live="polite">Instalacja jest wymagana przed wejściem do gry.</p>
+      <div class="install-foot"><span>HUNTLY PWA</span><span>PLAY FAIR. MOVE SMART.</span></div>
+    </div>
+  </section>
+\n  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
   <header class="topbar">
     <a class="brand" href="/" aria-label="Huntly home"><span class="brand-mark">H</span><span>HUNTLY<span class="brand-dot">.</span><small>THE OUTDOOR CHASE</small></span></a>
     <div class="connection"><span class="pulse"></span><span id="connectionText">Łączenie…</span></div>
