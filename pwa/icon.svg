@@ -1,1 +1,7 @@
-__LOAD_FILE__
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#101713"/>
+  <circle cx="256" cy="256" r="188" fill="none" stroke="#c7f36b" stroke-opacity=".16" stroke-width="4"/>
+  <circle cx="256" cy="256" r="130" fill="none" stroke="#c7f36b" stroke-opacity=".28" stroke-width="4"/>
+  <path d="M142 138v236h49V279h130v95h49V138h-49v94H191v-94z" fill="#c7f36b"/>
+  <circle cx="356" cy="156" r="12" fill="#c7f36b"/>
+</svg>
