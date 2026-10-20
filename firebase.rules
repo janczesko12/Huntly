@@ -1,1 +1,17 @@
-__LOAD_FILE__
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // TEST-ONLY rules. Any authenticated user can update rooms by known ID.
+    // Replace before public release with room membership and field validation.
+    match /rooms/{roomId} {
+      allow read, create, update: if request.auth != null;
+      allow delete: if false;
+
+      match /players/{playerId} {
+        allow read: if request.auth != null;
+        allow create, update: if request.auth != null;
+        allow delete: if request.auth != null && request.auth.uid == playerId;
+      }
+    }
+  }
+}
