@@ -1,5 +1,7 @@
-const CACHE_NAME = 'huntly-pwa-v1';
-const APP_SHELL = ['/', '/index.html', '/style.css', '/app.js', '/manifest.webmanifest', '/icon.svg'];
+const CACHE_NAME = 'huntly-pwa-v2';
+const APP_SHELL_PATHS = ['./', './index.html', './style.css', './app.js', './manifest.webmanifest', './icon.svg'];
+const scopedUrl = function (path) { return new URL(path, self.registration.scope).href; };
+const APP_SHELL = APP_SHELL_PATHS.map(scopedUrl);
 
 self.addEventListener('install', function (event) {
   event.waitUntil(caches.open(CACHE_NAME).then(function (cache) { return cache.addAll(APP_SHELL); }));
@@ -18,6 +20,7 @@ self.addEventListener('fetch', function (event) {
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+  if (!url.pathname.startsWith(new URL(self.registration.scope).pathname)) return;
   event.respondWith(fetch(request).then(function (response) {
     if (response && response.ok) {
       const copy = response.clone();
@@ -26,7 +29,7 @@ self.addEventListener('fetch', function (event) {
     return response;
   }).catch(function () {
     return caches.match(request).then(function (cached) {
-      return cached || (request.mode === 'navigate' ? caches.match('/index.html') : Response.error());
+      return cached || (request.mode === 'navigate' ? caches.match(scopedUrl('./index.html')) : Response.error());
     });
   }));
 });
