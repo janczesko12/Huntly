@@ -1,21 +1,21 @@
 {
-  "id": "/",
+  "id": "./",
   "name": "Huntly — The Outdoor Chase",
   "short_name": "Huntly",
   "description": "Terenowa gra w pościg i chowanego.",
   "lang": "pl",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#0d1310",
   "theme_color": "#101713",
   "icons": [
     {
-      "src": "/icon.svg",
+      "src": "./icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ]
-}\n
+}
