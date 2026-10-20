@@ -326,6 +326,7 @@
       renderMap();
       $('playerCount').textContent = state.players.length + (state.players.length === 1 ? ' gracz' : ' graczy');
       $('rosterCount').textContent = String(state.players.length);
+      if (state.room && state.room.hostUid === state.uid && state.room.status === 'lobby') $('startBtn').disabled = state.players.length < 2;
       const runners = state.players.filter(function (p) { return p.role === 'runner' && p.alive !== false; }).length;
       if (state.room && state.room.status === 'running' && runners === 0) finishRoom('Szukający wygrywa — wszyscy uciekający zostali złapani.');
     }, function (error) { toast('Nie udało się pobrać graczy', friendlyError(error), 'error'); });
@@ -354,7 +355,12 @@
   }
 
   function initMap() {
-    if (state.map || !window.L) return;
+    if (!window.L) return;
+    // The game panel is initially hidden. Recalculate Leaflet dimensions when the panel opens.
+    if (state.map) {
+      setTimeout(function () { if (state.map) state.map.invalidateSize(); }, 300);
+      return;
+    }
     state.map = L.map('map', { zoomControl: false, attributionControl: true }).setView([52.1, 19.4], 6);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
