@@ -558,6 +558,85 @@
     }
   }
 
+
+  function setupInstallRequirement() {
+    const gate = $('installGate');
+    const installBtn = $('installAppBtn');
+    const checkBtn = $('checkInstalledBtn');
+    const status = $('installStatus');
+    let installPrompt = null;
+    const isInstalled = function () {
+      return window.matchMedia('(display-mode: standalone)').matches ||
+        window.matchMedia('(display-mode: fullscreen)').matches ||
+        window.navigator.standalone === true;
+    };
+    const unlockIfInstalled = function () {
+      if (isInstalled()) {
+        gate.classList.add('hidden');
+        document.body.classList.add('pwa-installed');
+        return true;
+      }
+      gate.classList.remove('hidden');
+      document.body.classList.remove('pwa-installed');
+      return false;
+    };
+    window.addEventListener('beforeinstallprompt', function (event) {
+      event.preventDefault();
+      installPrompt = event;
+      installBtn.disabled = false;
+      installBtn.innerHTML = 'Zainstaluj Huntly <span class="button-arrow">↗</span>';
+      $('installInstructionTitle').textContent = 'Instalacja jednym kliknięciem';
+      $('installInstructionText').textContent = 'Naciśnij przycisk powyżej i zatwierdź instalację w oknie przeglądarki.';
+    });
+    window.addEventListener('appinstalled', function () {
+      installPrompt = null;
+      status.textContent = 'Instalacja zakończona. Otwórz Huntly z nowej ikony aplikacji.';
+      unlockIfInstalled();
+    });
+    installBtn.addEventListener('click', async function () {
+      if (isInstalled()) { unlockIfInstalled(); return; }
+      if (installPrompt) {
+        installBtn.disabled = true;
+        installPrompt.prompt();
+        const choice = await installPrompt.userChoice;
+        installPrompt = null;
+        installBtn.disabled = false;
+        if (choice && choice.outcome === 'accepted') {
+          status.textContent = 'Zatwierdzono instalację. Otwórz Huntly z ikony na ekranie głównym.';
+        } else {
+          status.textContent = 'Instalacja nie została zatwierdzona. Jest wymagana, aby grać.';
+        }
+        return;
+      }
+      const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const android = /android/i.test(navigator.userAgent);
+      if (ios) {
+        $('installInstructionTitle').textContent = 'iPhone / iPad — Safari';
+        $('installInstructionText').textContent = 'Otwórz stronę w Safari (nie w przeglądarce wbudowanej w inną aplikację). Naciśnij Udostępnij, wybierz „Dodaj do ekranu początkowego”, a następnie „Dodaj”. Potem uruchom Huntly z nowej ikony.';
+        status.textContent = 'Po dodaniu ikony zamknij tę kartę i uruchom aplikację z ekranu początkowego.';
+      } else if (android) {
+        $('installInstructionTitle').textContent = 'Android — Chrome';
+        $('installInstructionText').textContent = 'Otwórz menu ⋮ w Chrome i wybierz „Zainstaluj aplikację” lub „Dodaj do ekranu głównego”. Potwierdź, a potem uruchom Huntly z ikony.';
+        status.textContent = 'Po instalacji uruchom Huntly z ekranu głównego.';
+      } else {
+        $('installInstructionTitle').textContent = 'Komputer — Chrome / Edge';
+        $('installInstructionText').textContent = 'Użyj ikony instalacji w pasku adresu albo menu przeglądarki → „Zainstaluj Huntly”. Niektóre przeglądarki komputerowe nie obsługują instalacji PWA.';
+        status.textContent = 'Aby grać, otwórz aplikację w trybie samodzielnym po instalacji.';
+      }
+    });
+    checkBtn.addEventListener('click', function () {
+      if (!unlockIfInstalled()) {
+        status.textContent = 'Nie wykryto trybu aplikacji. Otwórz Huntly z ikony dodanej do ekranu głównego — samo potwierdzenie nie odblokuje gry.';
+      }
+    });
+    window.addEventListener('pageshow', unlockIfInstalled);
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) unlockIfInstalled();
+    });
+    unlockIfInstalled();
+  }
+
   function wireUi() {
     $('createBtn').addEventListener('click', createRoom);
     $('joinBtn').addEventListener('click', joinRoom);
