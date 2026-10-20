@@ -470,12 +470,14 @@
       await ensureLocation();
       const escapeSeconds = Number($('escapeSeconds').value) || 30;
       const roundMinutes = Number($('roundMinutes').value) || 20;
+      const revealEverySeconds = Number($('revealEverySeconds').value) || 30;
+      const revealDurationSeconds = Number($('revealDurationSeconds').value) || 5;
       const now = Date.now();
       await state.db.collection('rooms').doc(state.roomCode).update({
         status: 'escape', escapeSeconds: escapeSeconds, roundMinutes: roundMinutes,
         startedAtMs: now, escapeEndsAtMs: now + escapeSeconds * 1000,
         roundEndsAtMs: now + (escapeSeconds + roundMinutes * 60) * 1000,
-        revealEverySeconds: 30, revealDurationSeconds: 5,
+        revealEverySeconds: revealEverySeconds, revealDurationSeconds: revealDurationSeconds,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
       toast('Gra wystartowała', 'Uciekający mają ' + escapeSeconds + ' s na ukrycie się.', 'success');
@@ -496,7 +498,9 @@
       const remaining = Math.max(0, Math.ceil(((state.room.roundEndsAtMs || now) - now) / 1000));
       $('timer').textContent = formatTime(remaining);
       const elapsed = state.room.startedAtMs ? Math.max(0, Math.floor((now - state.room.startedAtMs) / 1000)) : 0;
-      const reveal = state.room.status === 'running' && elapsed % 30 < 5;
+      const every = Math.max(5, Number(state.room.revealEverySeconds) || 30);
+      const duration = Math.min(every, Math.max(1, Number(state.room.revealDurationSeconds) || 5));
+      const reveal = state.room.status === 'running' && elapsed % every < duration;
       $('statusHint').textContent = reveal ? '⚠ Sygnał GPS — pozycje ujawnione!' : 'Pozycje uciekających są ukryte.';
       if (remaining <= 0 && state.room.hostUid === state.uid) finishRoom('Czas się skończył.');
       renderMap();
