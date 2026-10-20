@@ -121,3 +121,27 @@ footer { max-width: 1240px; display: flex; justify-content: space-between; gap: 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
+/* Required-install gate */
+.install-gate { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; overflow-y: auto; padding: 22px; background: radial-gradient(ellipse at 18% 0%, #24391f 0, transparent 45%), radial-gradient(ellipse at 100% 80%, #1c3421 0, transparent 40%), #0b100d; }
+.install-card { width: min(100%, 660px); margin: auto; padding: clamp(22px, 5vw, 42px); border: 1px solid #c7f36b30; border-radius: 24px; background: linear-gradient(145deg, #17231bdd, #0d1510f5); box-shadow: 0 28px 100px #0008; animation: fade-up .45s both; }
+.install-brand { display: flex; align-items: center; gap: 11px; font-size: 18px; font-weight: 950; letter-spacing: .1em; line-height: 1; }
+.install-brand small { display: block; font-size: 8px; font-weight: 700; letter-spacing: .2em; color: var(--muted); margin-top: 5px; }
+.install-mark { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 13px; background: var(--green); color: #0b130b; font-size: 24px; }
+.install-eyebrow { display: flex; align-items: center; gap: 9px; margin-top: 34px; color: var(--green); font-size: 10px; font-weight: 900; letter-spacing: .2em; }
+.install-live { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 14px #c7f36b; }
+.install-card h1 { margin: 18px 0 14px; font-size: clamp(38px, 7vw, 64px); line-height: .99; letter-spacing: -.07em; }
+.install-card h1 em { font-style: normal; color: var(--green); }
+.install-lead { max-width: 530px; color: #a6b4a6; font-size: 14px; line-height: 1.8; }
+.install-benefits { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin: 25px 0; }
+.install-benefits > div { display: grid; gap: 7px; min-width: 0; padding: 14px 12px; border: 1px solid var(--border); border-radius: 12px; background: #ffffff04; }
+.install-benefits span { color: var(--green); font-size: 10px; font-weight: 900; letter-spacing: .1em; }
+.install-benefits strong { font-size: 12px; }.install-benefits small { color: #92a293; font-size: 10px; line-height: 1.45; }
+.install-main-button { min-height: 52px; margin-top: 0; padding: 0 18px; font-size: 13px; }
+.install-instructions { margin-top: 16px; padding: 16px; border: 1px solid #c7f36b26; border-radius: 12px; background: #c7f36b08; }
+.install-instructions strong { font-size: 12px; }.install-instructions p { margin: 7px 0 0; color: #a6b4a6; font-size: 11px; line-height: 1.7; }
+.install-check-button { width: 100%; margin-top: 12px; padding: 12px; border: 1px solid #ffffff20; border-radius: 9px; color: #dce7da; background: #ffffff05; font: inherit; font-size: 11px; font-weight: 750; cursor: pointer; }
+.install-check-button:hover { border-color: #c7f36b65; }
+.install-status { min-height: 18px; margin-top: 10px; color: #8fa18f; font-size: 10px; line-height: 1.5; text-align: center; }
+.install-foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 22px; padding-top: 15px; border-top: 1px solid #ffffff0c; color: #637365; font-size: 8px; font-weight: 900; letter-spacing: .14em; }
+@media (max-width: 520px) { .install-gate { padding: 12px; align-items: start; }.install-card { border-radius: 18px; padding: 22px 18px; }.install-eyebrow { margin-top: 26px; }.install-benefits { gap: 6px; }.install-benefits > div { padding: 10px 8px; }.install-benefits strong { font-size: 10px; }.install-benefits small { font-size: 9px; }.install-card h1 { font-size: 42px; } }
