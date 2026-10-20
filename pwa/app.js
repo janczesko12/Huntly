@@ -684,6 +684,12 @@
       ensureLocation().then(function () { toast('GPS gotowy', 'Lokalizacja została uzyskana.', 'success'); }).catch(function (error) { toast('Lokalizacja wymagana', error.message, 'error'); });
     });
     $('startBtn').addEventListener('click', startGame);
+    $('areaRadiusMeters').addEventListener('change', function () {
+      if (state.room && state.room.hostUid === state.uid && state.room.status === 'lobby') {
+        state.room.areaRadiusMeters = Number(this.value) || 500;
+        renderMap();
+      }
+    });
     $('leaveBtn').addEventListener('click', leaveRoom);
     $('endBtn').addEventListener('click', function () { if (confirm('Zakończyć rundę?')) finishRoom('Host zakończył rundę.'); });
     $('copyCodeBtn').addEventListener('click', copyCode);
