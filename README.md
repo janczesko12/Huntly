@@ -30,7 +30,7 @@ npm install -g firebase-tools
 firebase login
 ```
 
-This repository is configured to deploy to the existing Firebase project `huntly-game` using the `pwa/` directory:
+This repository contains the browser-only PWA in `pwa/` and is configured to deploy to the existing Firebase project `huntly-game`:
 
 ```powershell
 firebase deploy --only hosting
