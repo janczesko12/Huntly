@@ -18,7 +18,7 @@
   const state = {
     app: null, auth: null, db: null, uid: null, roomCode: null, room: null, me: null,
     players: [], roomUnsub: null, playersUnsub: null, map: null, markers: new Map(),
-    gps: null, gpsWatch: null, gpsTimer: null, refreshTimer: null, gameTimer: null,
+    gps: null, gpsWatch: null, gpsTimer: null, refreshTimer: null, gameTimer: null, areaCircle: null,
     roomBusy: false, locationReady: false, lastGpsAt: 0, lastRoomUpdate: 0
   };
 
@@ -417,6 +417,12 @@
   }
   function renderMap() {
     if (!state.map) return;
+    if (state.room && typeof state.room.areaCenterLat === 'number' && typeof state.room.areaCenterLng === 'number') {
+      const center = [state.room.areaCenterLat, state.room.areaCenterLng];
+      const radius = Math.max(50, Number(state.room.areaRadiusMeters) || 500);
+      if (!state.areaCircle) state.areaCircle = L.circle(center, { radius: radius, color: '#c7f36b', weight: 2, opacity: 0.9, fillColor: '#c7f36b', fillOpacity: 0.07 }).addTo(state.map);
+      else state.areaCircle.setLatLng(center).setRadius(radius);
+    }
     const visible = state.players.filter(function (p) { return typeof p.lat === 'number' && typeof p.lng === 'number' && locationVisible(p); });
     const keep = new Set();
     visible.forEach(function (player) {
@@ -466,7 +472,7 @@
       const name = document.createElement('strong');
       name.textContent = (player.name || 'Gracz') + (player.uid === state.uid ? ' (Ty)' : '');
       const role = document.createElement('span');
-      role.textContent = player.role === 'seeker' ? 'Szukający' : (player.alive === false ? 'Złapany' : (player.outsideArea ? 'Poza obszarem • GPS dla szukającego' : 'Uciekający'));
+      role.textContent = player.role === 'seeker' ? 'Szukający' : (player.alive === false ? 'Złapany' : (player.outsideArea && state.me && state.me.role === 'seeker' ? 'Poza obszarem • GPS na żywo' : 'Uciekający'));
       info.appendChild(name); info.appendChild(role);
       row.appendChild(icon); row.appendChild(info);
       if (state.me && state.me.role === 'seeker' && player.role === 'runner' && player.alive !== false && state.room && state.room.status === 'running') {
