@@ -19,7 +19,7 @@
     app: null, auth: null, db: null, functions: null, uid: null, roomCode: null, room: null, me: null,
     players: [], roomUnsub: null, playersUnsub: null, map: null, markers: new Map(),
     gps: null, gpsWatch: null, gpsTimer: null, refreshTimer: null, gameTimer: null, areaCircle: null,
-    roomBusy: false, locationReady: false, lastGpsAt: 0, lastRoomUpdate: 0
+    roomBusy: false, locationReady: false, lastGpsAt: 0, lastRoomUpdate: 0, captureHolds: new Map()
   };
 
   function toast(title, message, kind) {
