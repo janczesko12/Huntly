@@ -1,16 +1,77 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // TEST-ONLY rules. Any authenticated user can update rooms by known ID.
-    // Replace before public release with room membership and field validation.
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function roomPath(roomId) {
+      return /databases/$(database)/documents/rooms/$(roomId);
+    }
+
+    function playerPath(roomId, playerId) {
+      return /databases/$(database)/documents/rooms/$(roomId)/players/$(playerId);
+    }
+
+    function isHost(roomId) {
+      return signedIn() && get(roomPath(roomId)).data.hostUid == request.auth.uid;
+    }
+
+    function isMember(roomId) {
+      return signedIn() && exists(playerPath(roomId, request.auth.uid));
+    }
+
+    function validCoordinates(data) {
+      return data.lat is number && data.lat >= -90 && data.lat <= 90
+        && data.lng is number && data.lng >= -180 && data.lng <= 180
+        && (data.accuracy == null || (data.accuracy is number && data.accuracy >= 0 && data.accuracy <= 1000));
+    }
+
     match /rooms/{roomId} {
-      allow read, create, update: if request.auth != null;
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && request.resource.data.hostUid == request.auth.uid
+        && request.resource.data.code == roomId
+        && request.resource.data.status == 'lobby';
+      allow update: if isHost(roomId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'hostUid', 'status', 'escapeSeconds', 'roundMinutes',
+          'startedAtMs', 'escapeEndsAtMs', 'roundEndsAtMs',
+          'revealEverySeconds', 'revealDurationSeconds', 'areaRadiusMeters',
+          'endedAt', 'updatedAt'
+        ])
+        && request.resource.data.status in ['lobby', 'escape', 'running', 'ended']
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['hostUid'])
+          || exists(playerPath(roomId, request.resource.data.hostUid)));
       allow delete: if false;
 
       match /players/{playerId} {
-        allow read: if request.auth != null;
-        allow create, update: if request.auth != null;
-        allow delete: if request.auth != null && request.auth.uid == playerId;
+        allow get, list: if signedIn() && (playerId == request.auth.uid || isMember(roomId));
+
+        allow create: if signedIn()
+          && playerId == request.auth.uid
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.role == (get(roomPath(roomId)).data.hostUid == request.auth.uid ? 'seeker' : 'runner')
+          && request.resource.data.alive == true
+          && request.resource.data.keys().hasOnly([
+            'uid', 'name', 'role', 'alive', 'lat', 'lng', 'accuracy',
+            'joinedAt', 'locationUpdatedAt', 'onlineAt'
+          ])
+          && validCoordinates(request.resource.data)
+          && request.resource.data.locationUpdatedAt == request.time
+          && request.resource.data.onlineAt == request.time;
+
+        allow update: if signedIn()
+          && playerId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'lat', 'lng', 'accuracy', 'outsideArea', 'locationUpdatedAt', 'onlineAt'
+          ])
+          && validCoordinates(request.resource.data)
+          && request.resource.data.locationUpdatedAt == request.time
+          && request.resource.data.onlineAt == request.time;
+
+        allow delete: if signedIn() && playerId == request.auth.uid;
       }
     }
   }
