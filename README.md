@@ -55,9 +55,19 @@ The browser Firebase configuration in `pwa/app.js` is client-side configuration,
 
 GPS accuracy and timestamps are validated by the server, but a browser cannot cryptographically prove that submitted coordinates come from a physical GPS sensor. Do not treat this as anti-cheat-grade location attestation.
 
-### Important security warning
+### Important security notes
 
-The included `firebase.rules` are intentionally marked as MVP/test rules. They allow any authenticated anonymous user to read/update rooms if they know the document ID. Do not use these rules for a public launch with strangers. Before public release, implement room membership checks, validation of allowed field/role changes, and preferably move sensitive game actions into trusted backend code.
+Firestore rules restrict room settings to the host and prevent clients from directly changing player roles. The capture action is checked by the `captureRunner` Cloud Function in a Firestore transaction.
+
+**Location privacy limitation:** player GPS coordinates are still stored in player documents, which other authenticated members of that room can read. The map hides runner positions during hidden periods, but this is a UI rule, not confidential storage. Before a public launch with strangers, move location data to a separate collection with role-based read rules and migrate existing rooms.
+
+Browser GPS data is client-supplied and can be spoofed by a modified client; accuracy and age checks help reject bad fixes but do not provide hardware-backed location attestation.
+
+### Automated deploy
+
+The GitHub Actions workflow runs JavaScript syntax checks and the capture validation tests on pushes to `main`. To enable its production deployment, add a repository Actions secret named `FIREBASE_SERVICE_ACCOUNT_HUNTLY_GAME` containing the JSON key for a service account authorized to deploy Firebase Hosting, Cloud Functions and Firestore rules. The workflow deliberately skips deployment when this secret is missing.
+
+Deploying Cloud Functions also requires Firebase billing to be enabled (typically the Blaze plan).
 
 ## Browser and location limitations
 
