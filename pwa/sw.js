@@ -1,4 +1,4 @@
-const CACHE_NAME = 'huntly-pwa-v2';
+const CACHE_NAME = 'huntly-pwa-v3';
 const APP_SHELL_PATHS = ['./', './index.html', './style.css', './app.js', './manifest.webmanifest', './icon.svg'];
 const scopedUrl = function (path) { return new URL(path, self.registration.scope).href; };
 const APP_SHELL = APP_SHELL_PATHS.map(scopedUrl);
