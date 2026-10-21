@@ -12,7 +12,8 @@ Huntly is a browser-based outdoor hide-and-seek game for Android and iPhone. It 
 - Leaflet map using OpenStreetMap tiles.
 - Location required to create/join/resume a room; GPS updates every 10 seconds while the page is active and browser geolocation is available.
 - Live Firestore listeners plus a periodic 10-second refresh.
-- Temporary runner location reveals, countdown, capture reporting, leave-room flow and host handoff.
+- Temporary runner location reveals, countdown, 5 m capture with a 2-second hold, and a Firebase callable function that validates the catch before changing the runner into a seeker.
+- Capture checks require both location updates to be no older than 15 seconds and GPS accuracy reported as 10 m or better.
 - PWA manifest and service worker.
 
 ## Requirements
@@ -33,7 +34,7 @@ firebase login
 This repository contains the browser-only PWA in `pwa/` and is configured to deploy to the existing Firebase project `huntly-game`:
 
 ```powershell
-firebase deploy --only hosting
+firebase deploy --only hosting,functions,firestore:rules
 ```
 
 Live URL: https://huntly-game.web.app
@@ -48,9 +49,11 @@ firebase emulators:start --only hosting
 
 1. In Firebase Console, open **Authentication → Sign-in method** and enable **Anonymous**.
 2. Create a Firestore database.
-3. Review `firebase.rules` and publish the appropriate rules to Firestore.
+3. The repository's `firebase.rules` are linked through `firebase.json`. Deploy the Hosting app, callable Function, and Firestore rules together so the catch button does not call a missing backend and clients cannot edit player roles directly.
 
-The browser Firebase configuration in `pwa/app.js` is client-side configuration, not a Service Account private key.
+The browser Firebase configuration in `pwa/app.js` is client-side configuration, not a Service Account private key. The `captureRunner` Cloud Function runs in `europe-west1`; deploying Cloud Functions requires a Firebase project plan that supports Functions (typically the Blaze plan with billing enabled).
+
+GPS accuracy and timestamps are validated by the server, but a browser cannot cryptographically prove that submitted coordinates come from a physical GPS sensor. Do not treat this as anti-cheat-grade location attestation.
 
 ### Important security warning
 
