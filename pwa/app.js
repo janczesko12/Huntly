@@ -103,7 +103,7 @@
         state.gps = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
-          accuracy: position.coords.accuracy || null,
+          accuracy: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null,
           updatedAt: Date.now()
         };
         state.locationReady = true;
@@ -181,8 +181,8 @@
       if (typeof p.lat !== 'number' || !Number.isFinite(p.lat) || typeof p.lng !== 'number' || !Number.isFinite(p.lng)) {
         return { ok: false, label: 'Brak GPS', message: item.label + ': brak współrzędnych.' };
       }
-      const accuracy = Number(p.accuracy);
-      if (!Number.isFinite(accuracy) || accuracy < 0 || accuracy > CAPTURE_MAX_ACCURACY_METERS) {
+      const accuracy = p.accuracy;
+      if (typeof accuracy !== 'number' || !Number.isFinite(accuracy) || accuracy < 0 || accuracy > CAPTURE_MAX_ACCURACY_METERS) {
         return { ok: false, label: 'GPS niedokładny', message: item.label + ' musi mieć dokładność do ' + CAPTURE_MAX_ACCURACY_METERS + ' m.' };
       }
       const updatedAt = timestampMillis(p.locationUpdatedAt);
@@ -265,7 +265,7 @@
     }, GPS_INTERVAL_MS);
   }
   function onGpsSuccess(position) {
-    state.gps = { lat: position.coords.latitude, lng: position.coords.longitude, accuracy: position.coords.accuracy || null, updatedAt: Date.now() };
+    state.gps = { lat: position.coords.latitude, lng: position.coords.longitude, accuracy: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null, updatedAt: Date.now() };
     state.locationReady = true;
     state.lastGpsAt = Date.now();
     $('mapUpdated').textContent = 'GPS ' + new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
