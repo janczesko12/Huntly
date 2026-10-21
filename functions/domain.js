@@ -31,8 +31,8 @@ function validateFreshPosition(player, label, now) {
     || !Number.isFinite(player.lng) || player.lng < -180 || player.lng > 180) {
     return { ok: false, message: label + ': brak prawidłowych współrzędnych GPS.' };
   }
-  const accuracy = Number(player.accuracy);
-  if (!Number.isFinite(accuracy) || accuracy < 0 || accuracy > CAPTURE_MAX_ACCURACY_METERS) {
+  const accuracy = player.accuracy;
+  if (typeof accuracy !== 'number' || !Number.isFinite(accuracy) || accuracy < 0 || accuracy > CAPTURE_MAX_ACCURACY_METERS) {
     return { ok: false, message: label + ' musi mieć dokładność GPS do ' + CAPTURE_MAX_ACCURACY_METERS + ' m.' };
   }
   const updatedAt = timestampMillis(player.locationUpdatedAt);
