@@ -16,7 +16,7 @@
   const ROOM_REFRESH_MS = 10000;
   const $ = function (id) { return document.getElementById(id); };
   const state = {
-    app: null, auth: null, db: null, uid: null, roomCode: null, room: null, me: null,
+    app: null, auth: null, db: null, functions: null, uid: null, roomCode: null, room: null, me: null,
     players: [], roomUnsub: null, playersUnsub: null, map: null, markers: new Map(),
     gps: null, gpsWatch: null, gpsTimer: null, refreshTimer: null, gameTimer: null, areaCircle: null,
     roomBusy: false, locationReady: false, lastGpsAt: 0, lastRoomUpdate: 0
@@ -76,6 +76,7 @@
     state.app = firebase.app();
     state.auth = firebase.auth();
     state.db = firebase.firestore();
+    state.functions = firebase.app().functions('europe-west1');
     await state.auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
     if (!state.auth.currentUser) await state.auth.signInAnonymously();
     state.uid = state.auth.currentUser.uid;
@@ -157,6 +158,97 @@
     const x = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
     return 6371000 * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
   }
+  const CAPTURE_RADIUS_METERS = 5;
+  const CAPTURE_HOLD_MS = 2000;
+  const CAPTURE_GPS_FRESH_MS = 15000;
+  const CAPTURE_MAX_ACCURACY_METERS = 10;
+
+  function timestampMillis(value) {
+    if (!value) return 0;
+    if (typeof value.toMillis === 'function') return value.toMillis();
+    if (typeof value.toDate === 'function') return value.toDate().getTime();
+    if (typeof value.seconds === 'number') return value.seconds * 1000 + (Number(value.nanoseconds) || 0) / 1000000;
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : 0;
+  }
+
+  function captureReadiness(seeker, runner, now) {
+    now = typeof now === 'number' ? now : Date.now();
+    const players = [{ data: seeker, label: 'Twój GPS' }, { data: runner, label: 'GPS uciekającego' }];
+    for (let i = 0; i < players.length; i++) {
+      const item = players[i];
+      const p = item.data || {};
+      if (typeof p.lat !== 'number' || !Number.isFinite(p.lat) || typeof p.lng !== 'number' || !Number.isFinite(p.lng)) {
+        return { ok: false, label: 'Brak GPS', message: item.label + ': brak współrzędnych.' };
+      }
+      const accuracy = Number(p.accuracy);
+      if (!Number.isFinite(accuracy) || accuracy < 0 || accuracy > CAPTURE_MAX_ACCURACY_METERS) {
+        return { ok: false, label: 'GPS niedokładny', message: item.label + ' musi mieć dokładność do ' + CAPTURE_MAX_ACCURACY_METERS + ' m.' };
+      }
+      const updatedAt = timestampMillis(p.locationUpdatedAt);
+      if (!updatedAt || now - updatedAt > CAPTURE_GPS_FRESH_MS || updatedAt - now > 2000) {
+        return { ok: false, label: 'GPS nieaktualny', message: item.label + ' musi być odświeżony w ciągu ostatnich 15 sekund.' };
+      }
+    }
+    const distance = distanceMeters(seeker, runner);
+    if (!Number.isFinite(distance) || distance > CAPTURE_RADIUS_METERS) {
+      return { ok: false, label: 'Podejdź bliżej', message: 'Podejdź do uciekającego na maksymalnie 5 metrów. Teraz: ' + (Number.isFinite(distance) ? distance.toFixed(1) : '—') + ' m.', distance: distance };
+    }
+    return { ok: true, label: 'Przytrzymaj 2 s', message: 'Gracz jest w zasięgu.', distance: distance };
+  }
+
+  function cancelCaptureHold(uid) {
+    const hold = state.captureHolds.get(uid);
+    if (!hold) return;
+    clearInterval(hold.interval);
+    state.captureHolds.delete(uid);
+    if (hold.button) {
+      hold.button.classList.remove('is-holding');
+      hold.button.style.removeProperty('--hold-progress');
+      hold.button.textContent = 'Przytrzymaj 2 s';
+      hold.button.disabled = false;
+    }
+  }
+
+  function startCaptureHold(player, button) {
+    if (state.captureHolds.has(player.uid)) return;
+    const readiness = captureReadiness(state.me, player, Date.now());
+    if (!readiness.ok) {
+      toast('Nie można jeszcze złapać', readiness.message, 'error');
+      renderPlayers();
+      return;
+    }
+    const startedAt = Date.now();
+    button.classList.add('is-holding');
+    button.style.setProperty('--hold-progress', '0%');
+    button.textContent = 'Trzymaj 2.0 s';
+    const interval = setInterval(function () {
+      const current = state.players.find(function (p) { return p.uid === player.uid; }) || player;
+      const allowed = state.room && state.room.status === 'running' && state.me && state.me.role === 'seeker' &&
+        current.role === 'runner' && current.alive !== false && captureReadiness(state.me, current, Date.now()).ok;
+      if (!allowed) {
+        cancelCaptureHold(player.uid);
+        toast('Przerwano łapanie', 'Gracz wyszedł z zasięgu albo GPS jest nieaktualny.', 'error');
+        renderPlayers();
+        return;
+      }
+      const elapsed = Date.now() - startedAt;
+      const progress = Math.min(1, elapsed / CAPTURE_HOLD_MS);
+      const remaining = Math.max(0, (CAPTURE_HOLD_MS - elapsed) / 1000);
+      button.style.setProperty('--hold-progress', (progress * 100).toFixed(1) + '%');
+      button.textContent = progress >= 1 ? 'Sprawdzam…' : 'Trzymaj ' + remaining.toFixed(1) + ' s';
+      if (progress >= 1) {
+        clearInterval(interval);
+        state.captureHolds.delete(player.uid);
+        button.classList.remove('is-holding');
+        button.style.removeProperty('--hold-progress');
+        button.disabled = true;
+        catchPlayer(current).finally(function () { renderPlayers(); });
+      }
+    }, 50);
+    state.captureHolds.set(player.uid, { interval: interval, button: button });
+  }
+
   function isOutsidePlayArea(position, room) {
     if (!room || typeof room.areaCenterLat !== 'number' || typeof room.areaCenterLng !== 'number') return false;
     const radius = Math.max(50, Number(room.areaRadiusMeters) || 500);
@@ -348,8 +440,15 @@
     state.playersUnsub = ref.collection('players').onSnapshot(function (snap) {
       state.players = snap.docs.map(function (doc) { const d = doc.data(); d.uid = doc.id; return d; });
       state.me = state.players.find(function (player) { return player.uid === state.uid; }) || state.me;
-      if (state.me) sessionStore();
-      renderPlayers();
+      if (state.me) {
+        sessionStore();
+        $('roleBadge').textContent = state.me.role === 'seeker' ? 'SZUKAJĄCY' : 'UCIEKAJĄCY';
+      }
+      state.captureHolds.forEach(function (_, uid) {
+        const target = state.players.find(function (p) { return p.uid === uid; });
+        if (!target || target.role !== 'runner' || target.alive === false || !state.me || state.me.role !== 'seeker') cancelCaptureHold(uid);
+      });
+      if (state.captureHolds.size === 0) renderPlayers();
       renderMap();
       $('playerCount').textContent = state.players.length + (state.players.length === 1 ? ' gracz' : ' graczy');
       $('rosterCount').textContent = String(state.players.length);
@@ -476,11 +575,34 @@
       info.appendChild(name); info.appendChild(role);
       row.appendChild(icon); row.appendChild(info);
       if (state.me && state.me.role === 'seeker' && player.role === 'runner' && player.alive !== false && state.room && state.room.status === 'running') {
+        const readiness = captureReadiness(state.me, player, Date.now());
         const catchBtn = document.createElement('button');
-        catchBtn.className = 'catch-button';
-        catchBtn.textContent = 'Złap';
-        catchBtn.title = 'Oznacz gracza jako złapanego';
-        catchBtn.addEventListener('click', function () { catchPlayer(player); });
+        catchBtn.className = 'catch-button' + (readiness.ok ? ' catch-ready' : '');
+        catchBtn.textContent = readiness.ok ? 'Przytrzymaj 2 s' : readiness.label;
+        catchBtn.title = readiness.ok
+          ? 'Przytrzymaj przez 2 sekundy. Odległość około ' + readiness.distance.toFixed(1) + ' m.'
+          : readiness.message;
+        catchBtn.disabled = !readiness.ok;
+        catchBtn.setAttribute('aria-label', 'Złapanie gracza ' + (player.name || 'Gracz') + ': ' + (readiness.ok ? 'przytrzymaj przez 2 sekundy' : readiness.label));
+        catchBtn.addEventListener('pointerdown', function (event) {
+          if (event.pointerType) event.preventDefault();
+          if (typeof catchBtn.setPointerCapture === 'function' && event.pointerId !== undefined) {
+            try { catchBtn.setPointerCapture(event.pointerId); } catch (_) {}
+          }
+          startCaptureHold(player, catchBtn);
+        });
+        ['pointerup', 'pointerleave', 'pointercancel', 'lostpointercapture', 'blur'].forEach(function (eventName) {
+          catchBtn.addEventListener(eventName, function () { cancelCaptureHold(player.uid); });
+        });
+        catchBtn.addEventListener('keydown', function (event) {
+          if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) {
+            event.preventDefault();
+            startCaptureHold(player, catchBtn);
+          }
+        });
+        catchBtn.addEventListener('keyup', function (event) {
+          if (event.key === ' ' || event.key === 'Enter') cancelCaptureHold(player.uid);
+        });
         row.appendChild(catchBtn);
       }
       list.appendChild(row);
@@ -488,13 +610,14 @@
   }
 
   async function catchPlayer(player) {
-    if (!confirm('Oznaczyć gracza ' + (player.name || 'Gracz') + ' jako złapanego?')) return;
+    if (!state.roomCode || !state.uid) return;
     try {
-      await state.db.collection('rooms').doc(state.roomCode).collection('players').doc(player.uid).update({ alive: false, caughtAt: firebase.firestore.FieldValue.serverTimestamp() });
-      toast('Gracz złapany', player.name || 'Gracz', 'success');
-      const runners = state.players.filter(function (p) { return p.role === 'runner' && p.alive !== false && p.uid !== player.uid; });
-      if (!runners.length) await finishRoom('Szukający wygrywa — wszyscy uciekający zostali złapani.');
-    } catch (error) { toast('Nie udało się oznaczyć złapania', friendlyError(error), 'error'); }
+      const capture = state.functions.httpsCallable('captureRunner');
+      await capture({ roomCode: state.roomCode, runnerUid: player.uid });
+      toast('Gracz złapany!', (player.name || 'Gracz') + ' dołącza do drużyny szukających.', 'success');
+    } catch (error) {
+      toast('Nie udało się złapać gracza', friendlyError(error), 'error');
+    }
   }
 
   async function startGame() {
