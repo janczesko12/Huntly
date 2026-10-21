@@ -1,0 +1,79 @@
+name: Test and deploy Huntly
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "pwa/**"
+      - "functions/**"
+      - "firebase.json"
+      - "firebase.rules"
+      - ".github/workflows/firebase-deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Validate Huntly
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check JavaScript syntax
+        run: |
+          node --check pwa/app.js
+          node --check pwa/sw.js
+          node --check functions/index.js
+          node --check functions/domain.js
+      - name: Run capture validation tests
+        working-directory: functions
+        run: |
+          npm install --no-audit --no-fund
+          npm test
+
+  deploy:
+    name: Deploy Hosting, Functions and Firestore rules
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check Firebase deployment credential
+        id: credential
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HUNTLY_GAME }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Deployment skipped: add the repository secret FIREBASE_SERVICE_ACCOUNT_HUNTLY_GAME containing a Firebase deploy service-account JSON."
+            {
+              echo "### Firebase deployment skipped"
+              echo "The test job passed, but the live site was not changed because the repository secret `FIREBASE_SERVICE_ACCOUNT_HUNTLY_GAME` is not configured."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
+          echo "available=true" >> "$GITHUB_OUTPUT"
+      - name: Install Firebase CLI
+        if: steps.credential.outputs.available == 'true'
+        run: npm install --global firebase-tools
+      - name: Deploy app, callable function and Firestore rules
+        if: steps.credential.outputs.available == 'true'
+        run: firebase deploy --project huntly-game --only hosting,functions,firestore:rules --non-interactive
+      - name: Deployment summary
+        if: steps.credential.outputs.available == 'true'
+        run: |
+          {
+            echo "### Huntly deployed"
+            echo "Deployed Hosting, Cloud Functions and Firestore rules to `huntly-game`."
+            echo "Live site: https://huntly-game.web.app"
+          } >> "$GITHUB_STEP_SUMMARY"

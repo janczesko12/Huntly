@@ -12,7 +12,8 @@ Huntly is a browser-based outdoor hide-and-seek game for Android and iPhone. It 
 - Leaflet map using OpenStreetMap tiles.
 - Location required to create/join/resume a room; GPS updates every 10 seconds while the page is active and browser geolocation is available.
 - Live Firestore listeners plus a periodic 10-second refresh.
-- Temporary runner location reveals, countdown, capture reporting, leave-room flow and host handoff.
+- Temporary runner location reveals, countdown, 5 m capture with a 2-second hold, and a Firebase callable function that validates the catch before changing the runner into a seeker.
+- Capture checks require both location updates to be no older than 15 seconds and GPS accuracy reported as 10 m or better.
 - PWA manifest and service worker.
 
 ## Requirements
@@ -33,7 +34,7 @@ firebase login
 This repository contains the browser-only PWA in `pwa/` and is configured to deploy to the existing Firebase project `huntly-game`:
 
 ```powershell
-firebase deploy --only hosting
+firebase deploy --only hosting,functions,firestore:rules
 ```
 
 Live URL: https://huntly-game.web.app
@@ -48,13 +49,25 @@ firebase emulators:start --only hosting
 
 1. In Firebase Console, open **Authentication → Sign-in method** and enable **Anonymous**.
 2. Create a Firestore database.
-3. Review `firebase.rules` and publish the appropriate rules to Firestore.
+3. The repository's `firebase.rules` are linked through `firebase.json`. Deploy the Hosting app, callable Function, and Firestore rules together so the catch button does not call a missing backend and clients cannot edit player roles directly.
 
-The browser Firebase configuration in `pwa/app.js` is client-side configuration, not a Service Account private key.
+The browser Firebase configuration in `pwa/app.js` is client-side configuration, not a Service Account private key. The `captureRunner` Cloud Function runs in `europe-west1`; deploying Cloud Functions requires a Firebase project plan that supports Functions (typically the Blaze plan with billing enabled).
 
-### Important security warning
+GPS accuracy and timestamps are validated by the server, but a browser cannot cryptographically prove that submitted coordinates come from a physical GPS sensor. Do not treat this as anti-cheat-grade location attestation.
 
-The included `firebase.rules` are intentionally marked as MVP/test rules. They allow any authenticated anonymous user to read/update rooms if they know the document ID. Do not use these rules for a public launch with strangers. Before public release, implement room membership checks, validation of allowed field/role changes, and preferably move sensitive game actions into trusted backend code.
+### Important security notes
+
+Firestore rules restrict room settings to the host and prevent clients from directly changing player roles. The capture action is checked by the `captureRunner` Cloud Function in a Firestore transaction.
+
+**Location privacy limitation:** player GPS coordinates are still stored in player documents, which other authenticated members of that room can read. The map hides runner positions during hidden periods, but this is a UI rule, not confidential storage. Before a public launch with strangers, move location data to a separate collection with role-based read rules and migrate existing rooms.
+
+Browser GPS data is client-supplied and can be spoofed by a modified client; accuracy and age checks help reject bad fixes but do not provide hardware-backed location attestation.
+
+### Automated deploy
+
+The GitHub Actions workflow runs JavaScript syntax checks and the capture validation tests on pushes to `main`. To enable its production deployment, add a repository Actions secret named `FIREBASE_SERVICE_ACCOUNT_HUNTLY_GAME` containing the JSON key for a service account authorized to deploy Firebase Hosting, Cloud Functions and Firestore rules. The workflow deliberately skips deployment when this secret is missing.
+
+Deploying Cloud Functions also requires Firebase billing to be enabled (typically the Blaze plan).
 
 ## Browser and location limitations
 
