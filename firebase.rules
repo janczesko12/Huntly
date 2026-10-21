@@ -24,7 +24,7 @@ service cloud.firestore {
     function validCoordinates(data) {
       return data.lat is number && data.lat >= -90 && data.lat <= 90
         && data.lng is number && data.lng >= -180 && data.lng <= 180
-        && (data.accuracy == null || (data.accuracy is number && data.accuracy >= 0 && data.accuracy <= 1000));
+        && (data.accuracy is number && data.accuracy >= 0 && data.accuracy <= 1000);
     }
 
     match /rooms/{roomId} {
