@@ -299,33 +299,25 @@ footer { max-width: 1240px; display: flex; justify-content: space-between; gap: 
 }
 .ios-guide-symbol { transform: translateX(-26px); }
 .ios-share-symbol {
-  position: relative;
-  font-size: 0;
-  line-height: 1;
   padding: 0;
+  position: relative;
 }
-.ios-share-symbol::before {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 50%;
-  width: 14px;
-  height: 18px;
-  transform: translateX(-50%);
-  background: var(--green);
-  clip-path: polygon(50% 0, 100% 35%, 70% 35%, 70% 100%, 30% 100%, 30% 35%, 0 35%);
-}
+.ios-share-symbol::before,
 .ios-share-symbol::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: 3px;
-  transform: translateX(-50%);
-  width: 19px;
-  height: 12px;
-  border: 2px solid var(--green);
-  border-top: 0;
-  border-radius: 0 0 4px 4px;
+  content: none;
+}
+.ios-share-symbol svg {
+  display: block;
+  width: 29px;
+  height: 29px;
+  overflow: visible;
+}
+.ios-share-symbol svg path {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .ios-home-symbol { font-size: 29px; }
 .ios-add-symbol { font-size: 22px; }
