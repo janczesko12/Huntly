@@ -369,3 +369,9 @@ footer { max-width: 1240px; display: flex; justify-content: space-between; gap: 
   .ios-guide-step p { font-size: 10px; line-height: 1.5; }
   .ios-guide-symbol { width: 33px; height: 33px; border-radius: 10px; }
 }
+
+/* User-selected values from Huntly visual editor */
+.ios-guide-symbol { transform: translateX(-6px); }
+.ios-guide-symbol { width: 31px; height: 31px; }
+.ios-guide-steps { gap: 22px; }
+.ios-install-guide { background: radial-gradient(ellipse at 12% 0%, #24391f 0, transparent 42%), radial-gradient(ellipse at 55% 46%, #1c3421 0, transparent 42%), #0b100d; }
