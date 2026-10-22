@@ -307,7 +307,7 @@ footer { max-width: 1240px; display: flex; justify-content: space-between; gap: 
 .ios-share-symbol::after {
   content: "";
   position: absolute;
-  left: 11px;
+  left: 7px;
   bottom: 8px;
   width: 16px;
   height: 12px;
