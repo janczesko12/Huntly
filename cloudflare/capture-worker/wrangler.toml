@@ -1,0 +1,8 @@
+name = "huntly-capture"
+main = "src/index.js"
+compatibility_date = "2026-10-22"
+workers_dev = true
+
+[vars]
+FIREBASE_PROJECT_ID = "huntly-game"
+ALLOWED_ORIGINS = "https://huntly-game.web.app,https://huntly-game.firebaseapp.com,http://localhost:5000,http://127.0.0.1:5000"
