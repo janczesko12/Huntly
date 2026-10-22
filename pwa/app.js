@@ -758,7 +758,21 @@
     const installBtn = $('installAppBtn');
     const checkBtn = $('checkInstalledBtn');
     const status = $('installStatus');
+    const iosGuide = $('iosInstallGuide');
+    const iosGuideBack = $('iosGuideBack');
     let installPrompt = null;
+    const openIosInstallGuide = function () {
+      gate.classList.add('ios-guide-open');
+      iosGuide.classList.remove('hidden');
+      iosGuide.setAttribute('aria-hidden', 'false');
+      status.textContent = 'Postępuj zgodnie z instrukcją wyświetloną na całym ekranie.';
+    };
+    const closeIosInstallGuide = function () {
+      gate.classList.remove('ios-guide-open');
+      iosGuide.classList.add('hidden');
+      iosGuide.setAttribute('aria-hidden', 'true');
+    };
+    iosGuideBack.addEventListener('click', closeIosInstallGuide);
     const isInstalled = function () {
       return window.matchMedia('(display-mode: standalone)').matches ||
         window.matchMedia('(display-mode: fullscreen)').matches ||
@@ -809,6 +823,7 @@
         $('installInstructionTitle').textContent = 'iPhone / iPad — Safari';
         $('installInstructionText').textContent = 'Otwórz stronę w Safari (nie w przeglądarce wbudowanej w inną aplikację). Naciśnij Udostępnij, wybierz „Dodaj do ekranu początkowego”, a następnie „Dodaj”. Potem uruchom Huntly z nowej ikony.';
         status.textContent = 'Po dodaniu ikony zamknij tę kartę i uruchom aplikację z ekranu początkowego.';
+        openIosInstallGuide();
       } else if (android) {
         $('installInstructionTitle').textContent = 'Android — Chrome';
         $('installInstructionText').textContent = 'Otwórz menu ⋮ w Chrome i wybierz „Zainstaluj aplikację” lub „Dodaj do ekranu głównego”. Potwierdź, a potem uruchom Huntly z ikony.';
