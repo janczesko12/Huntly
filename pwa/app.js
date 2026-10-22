@@ -12,11 +12,12 @@
     measurementId: 'G-FS6054LH9R'
   };
   const SESSION_KEY = 'huntly.session.v1';
+  const CAPTURE_API_URL = String((window.HUNTLY_CONFIG && window.HUNTLY_CONFIG.captureApiUrl) || '').trim();
   const GPS_INTERVAL_MS = 10000;
   const ROOM_REFRESH_MS = 10000;
   const $ = function (id) { return document.getElementById(id); };
   const state = {
-    app: null, auth: null, db: null, functions: null, uid: null, roomCode: null, room: null, me: null,
+    app: null, auth: null, db: null, uid: null, roomCode: null, room: null, me: null,
     players: [], roomUnsub: null, playersUnsub: null, map: null, markers: new Map(),
     gps: null, gpsWatch: null, gpsTimer: null, refreshTimer: null, gameTimer: null, areaCircle: null,
     roomBusy: false, locationReady: false, lastGpsAt: 0, lastRoomUpdate: 0, captureHolds: new Map()
@@ -76,7 +77,6 @@
     state.app = firebase.app();
     state.auth = firebase.auth();
     state.db = firebase.firestore();
-    state.functions = firebase.app().functions('europe-west1');
     await state.auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
     if (!state.auth.currentUser) await state.auth.signInAnonymously();
     state.uid = state.auth.currentUser.uid;
@@ -197,56 +197,88 @@
     return { ok: true, label: 'Przytrzymaj 2 s', message: 'Gracz jest w zasięgu.', distance: distance };
   }
 
+  function makeCaptureNonce() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+    const bytes = new Uint8Array(16);
+    if (!window.crypto || !window.crypto.getRandomValues) throw new Error('Ta przeglądarka nie obsługuje bezpiecznego identyfikatora łapania.');
+    window.crypto.getRandomValues(bytes);
+    return Array.from(bytes, function (byte) { return byte.toString(16).padStart(2, '0'); }).join('');
+  }
+
+  async function captureApi(action, payload) {
+    if (!CAPTURE_API_URL || CAPTURE_API_URL.indexOf('workers.dev') < 0) throw new Error('Darmowy backend łapania nie jest jeszcze skonfigurowany. Ustaw captureApiUrl w pwa/config.js.');
+    const currentUser = state.auth && state.auth.currentUser;
+    if (!currentUser) throw new Error('Sesja wygasła. Odśwież stronę i spróbuj ponownie.');
+    const token = await currentUser.getIdToken();
+    const response = await fetch(CAPTURE_API_URL.replace(/\/$/, '') + '/capture/' + action, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify(payload)
+    });
+    let result = {};
+    try { result = await response.json(); } catch (e) {}
+    if (!response.ok || result.ok === false) throw new Error(result.error || 'Backend łapania zwrócił błąd (' + response.status + ').');
+    return result;
+  }
+
+  function resetCaptureButton(button) {
+    if (!button) return;
+    button.classList.remove('is-holding');
+    button.style.removeProperty('--hold-progress');
+    button.textContent = 'Przytrzymaj 2 s';
+    button.disabled = false;
+  }
+
   function cancelCaptureHold(uid) {
     const hold = state.captureHolds.get(uid);
     if (!hold) return;
-    clearInterval(hold.interval);
+    if (hold.interval) clearInterval(hold.interval);
     state.captureHolds.delete(uid);
-    if (hold.button) {
-      hold.button.classList.remove('is-holding');
-      hold.button.style.removeProperty('--hold-progress');
-      hold.button.textContent = 'Przytrzymaj 2 s';
-      hold.button.disabled = false;
-    }
+    if (hold.serverStarted && !hold.finishing) captureApi('cancel', { roomCode: state.roomCode, runnerUid: uid, nonce: hold.nonce }).catch(function () {});
+    resetCaptureButton(hold.button);
   }
 
   function startCaptureHold(player, button) {
     if (state.captureHolds.has(player.uid)) return;
     const readiness = captureReadiness(state.me, player, Date.now());
-    if (!readiness.ok) {
-      toast('Nie można jeszcze złapać', readiness.message, 'error');
-      renderPlayers();
-      return;
-    }
-    const startedAt = Date.now();
+    if (!readiness.ok) { toast('Nie można jeszcze złapać', readiness.message, 'error'); renderPlayers(); return; }
+    let nonce;
+    try { nonce = makeCaptureNonce(); } catch (error) { toast('Nie można rozpocząć łapania', error.message, 'error'); return; }
+    const hold = { interval: null, button: button, nonce: nonce, serverStarted: false, finishing: false, startedAt: 0 };
+    state.captureHolds.set(player.uid, hold);
     button.classList.add('is-holding');
     button.style.setProperty('--hold-progress', '0%');
-    button.textContent = 'Trzymaj 2.0 s';
-    const interval = setInterval(function () {
-      const current = state.players.find(function (p) { return p.uid === player.uid; }) || player;
-      const allowed = state.room && state.room.status === 'running' && state.me && state.me.role === 'seeker' &&
-        current.role === 'runner' && current.alive !== false && captureReadiness(state.me, current, Date.now()).ok;
-      if (!allowed) {
-        cancelCaptureHold(player.uid);
-        toast('Przerwano łapanie', 'Gracz wyszedł z zasięgu albo GPS jest nieaktualny.', 'error');
-        renderPlayers();
-        return;
+    button.textContent = 'Sprawdzam GPS…';
+    button.disabled = true;
+    captureApi('start', { roomCode: state.roomCode, runnerUid: player.uid, nonce: nonce }).then(function (result) {
+      if (state.captureHolds.get(player.uid) !== hold) { captureApi('cancel', { roomCode: state.roomCode, runnerUid: player.uid, nonce: nonce }).catch(function () {}); return; }
+      hold.serverStarted = true;
+      hold.startedAt = Number(result.startedAt) || Date.now();
+      button.disabled = false;
+      function updateHoldProgress() {
+        const current = state.players.find(function (p) { return p.uid === player.uid; }) || player;
+        const allowed = state.room && state.room.status === 'running' && state.me && state.me.role === 'seeker' && current.role === 'runner' && current.alive !== false && captureReadiness(state.me, current, Date.now()).ok;
+        if (!allowed) { cancelCaptureHold(player.uid); toast('Przerwano łapanie', 'Gracz wyszedł z zasięgu albo GPS jest nieaktualny.', 'error'); renderPlayers(); return; }
+        const elapsed = Math.max(0, Date.now() - hold.startedAt);
+        const progress = Math.min(1, elapsed / CAPTURE_HOLD_MS);
+        const remaining = Math.max(0, (CAPTURE_HOLD_MS - elapsed) / 1000);
+        button.style.setProperty('--hold-progress', (progress * 100).toFixed(1) + '%');
+        button.textContent = progress >= 1 ? 'Sprawdzam…' : 'Trzymaj ' + remaining.toFixed(1) + ' s';
+        if (progress >= 1) {
+          if (hold.interval) clearInterval(hold.interval);
+          state.captureHolds.delete(player.uid);
+          hold.finishing = true;
+          button.classList.remove('is-holding');
+          button.style.removeProperty('--hold-progress');
+          button.disabled = true;
+          catchPlayer(current, nonce).finally(function () { renderPlayers(); });
+        }
       }
-      const elapsed = Date.now() - startedAt;
-      const progress = Math.min(1, elapsed / CAPTURE_HOLD_MS);
-      const remaining = Math.max(0, (CAPTURE_HOLD_MS - elapsed) / 1000);
-      button.style.setProperty('--hold-progress', (progress * 100).toFixed(1) + '%');
-      button.textContent = progress >= 1 ? 'Sprawdzam…' : 'Trzymaj ' + remaining.toFixed(1) + ' s';
-      if (progress >= 1) {
-        clearInterval(interval);
-        state.captureHolds.delete(player.uid);
-        button.classList.remove('is-holding');
-        button.style.removeProperty('--hold-progress');
-        button.disabled = true;
-        catchPlayer(current).finally(function () { renderPlayers(); });
-      }
-    }, 50);
-    state.captureHolds.set(player.uid, { interval: interval, button: button });
+      hold.interval = setInterval(updateHoldProgress, 50);
+      updateHoldProgress();
+    }).catch(function (error) {
+      if (state.captureHolds.get(player.uid) === hold) { state.captureHolds.delete(player.uid); resetCaptureButton(button); toast('Nie udało się rozpocząć łapania', error.message || friendlyError(error), 'error'); renderPlayers(); }
+    });
   }
 
   function isOutsidePlayArea(position, room) {
@@ -609,14 +641,13 @@
     });
   }
 
-  async function catchPlayer(player) {
+  async function catchPlayer(player, nonce) {
     if (!state.roomCode || !state.uid) return;
     try {
-      const capture = state.functions.httpsCallable('captureRunner');
-      await capture({ roomCode: state.roomCode, runnerUid: player.uid });
+      await captureApi('finish', { roomCode: state.roomCode, runnerUid: player.uid, nonce: nonce });
       toast('Gracz złapany!', (player.name || 'Gracz') + ' dołącza do drużyny szukających.', 'success');
     } catch (error) {
-      toast('Nie udało się złapać gracza', friendlyError(error), 'error');
+      toast('Nie udało się złapać gracza', error.message || friendlyError(error), 'error');
     }
   }
 
