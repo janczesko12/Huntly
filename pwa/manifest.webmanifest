@@ -12,7 +12,7 @@
   "theme_color": "#101713",
   "icons": [
     {
-      "src": "./icon.svg",
+      "src": "./icon.svg?v=20261022-huntly-favicon-1",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
