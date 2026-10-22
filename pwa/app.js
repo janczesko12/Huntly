@@ -249,7 +249,7 @@
     button.classList.add('is-holding');
     button.style.setProperty('--hold-progress', '0%');
     button.textContent = 'Sprawdzam GPS…';
-    button.disabled = true;
+    button.disabled = false;
     captureApi('start', { roomCode: state.roomCode, runnerUid: player.uid, nonce: nonce }).then(function (result) {
       if (state.captureHolds.get(player.uid) !== hold) { captureApi('cancel', { roomCode: state.roomCode, runnerUid: player.uid, nonce: nonce }).catch(function () {}); return; }
       hold.serverStarted = true;
