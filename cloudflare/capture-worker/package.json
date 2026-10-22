@@ -1,0 +1,12 @@
+{
+  "name": "huntly-capture-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test src/domain.test.js",
+    "check": "node --check src/index.js && node --check src/domain.js"
+  },
+  "devDependencies": {
+    "wrangler": "^4.45.0"
+  }
+}

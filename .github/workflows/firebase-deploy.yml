@@ -6,6 +6,17 @@ on:
       - main
     paths:
       - "pwa/**"
+      - "cloudflare/capture-worker/**"
+      - "functions/**"
+      - "firebase.json"
+      - "firebase.rules"
+      - ".github/workflows/firebase-deploy.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "pwa/**"
+      - "cloudflare/capture-worker/**"
       - "functions/**"
       - "firebase.json"
       - "firebase.rules"
@@ -27,17 +38,26 @@ jobs:
       - name: Check JavaScript syntax
         run: |
           node --check pwa/app.js
+          node --check pwa/config.js
           node --check pwa/sw.js
           node --check functions/index.js
           node --check functions/domain.js
-      - name: Run capture validation tests
+          node --check cloudflare/capture-worker/src/index.js
+          node --check cloudflare/capture-worker/src/domain.js
+      - name: Run legacy capture domain tests
         working-directory: functions
         run: |
           npm install --no-audit --no-fund
           npm test
+      - name: Run Cloudflare Worker tests
+        working-directory: cloudflare/capture-worker
+        run: |
+          npm install --no-audit --no-fund
+          npm run check
+          npm test
 
   deploy:
-    name: Deploy Hosting, Functions and Firestore rules
+    name: Deploy Hosting and Firestore rules
     needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
@@ -66,14 +86,14 @@ jobs:
       - name: Install Firebase CLI
         if: steps.credential.outputs.available == 'true'
         run: npm install --global firebase-tools
-      - name: Deploy app, callable function and Firestore rules
+      - name: Deploy app and Firestore rules
         if: steps.credential.outputs.available == 'true'
-        run: firebase deploy --project huntly-game --only hosting,functions,firestore:rules --non-interactive
+        run: firebase deploy --project huntly-game --only hosting,firestore:rules --non-interactive
       - name: Deployment summary
         if: steps.credential.outputs.available == 'true'
         run: |
           {
             echo "### Huntly deployed"
-            echo "Deployed Hosting, Cloud Functions and Firestore rules to `huntly-game`."
+            echo "Deployed Hosting and Firestore rules to `huntly-game`. Cloudflare Capture Worker is deployed separately."
             echo "Live site: https://huntly-game.web.app"
           } >> "$GITHUB_STEP_SUMMARY"
