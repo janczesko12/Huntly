@@ -252,7 +252,7 @@ async function handleAction(env, action, uid, input) {
   const roomCode = String(input.roomCode || '').trim();
   const runnerUid = String(input.runnerUid || '').trim();
   const nonce = String(input.nonce || '').trim();
-  if (!/^\d{6}$/.test(roomCode) || !runnerUid || runnerUid === uid ||
+  if (!/^\d{6}$/.test(roomCode) || !/^[A-Za-z0-9_-]{1,128}$/.test(runnerUid) || runnerUid === uid ||
       !/^[0-9a-f-]{32,36}$/i.test(nonce)) {
     throw new ApiError(400, 'Nieprawidłowy pokój, gracz lub identyfikator łapania.');
   }
