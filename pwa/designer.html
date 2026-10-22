@@ -152,10 +152,10 @@ input[type=range]{display:block;width:100%;accent-color:var(--green);cursor:ew-r
     document.getElementById("cssCode").textContent=generateCss(s);
   }
   function generateCss(s){
-    return "/* Huntly — ustawienia instrukcji instalacji */\\n"+
-".ios-guide-symbol { transform: translateX(-"+s.shift+"px); }\\n"+
-".ios-guide-symbol { width: "+s.size+"px; height: "+s.size+"px; }\\n"+
-".ios-guide-steps { gap: "+s.cardGap+"px; }\\n"+
+    return "/* Huntly — ustawienia instrukcji instalacji */\n"+
+".ios-guide-symbol { transform: translateX(-"+s.shift+"px); }\n"+
+".ios-guide-symbol { width: "+s.size+"px; height: "+s.size+"px; }\n"+
+".ios-guide-steps { gap: "+s.cardGap+"px; }\n"+
 ".ios-install-guide { background: radial-gradient(ellipse at 12% 0%, #24391f 0, transparent 42%), radial-gradient(ellipse at "+s.glowX+"% "+s.glowY+"%, #1c3421 0, transparent 42%), #0b100d; }";
   }
   function load(){
