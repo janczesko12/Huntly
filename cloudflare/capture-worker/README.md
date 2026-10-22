@@ -38,7 +38,7 @@ window.HUNTLY_CONFIG = Object.freeze({
 });
 \`\`\`
 
-Zapisz zmianę, wypchnij ją na \`main\` i poczekaj na zielony workflow. GitHub Actions wdraża Firebase Hosting oraz reguły Firestore; Worker wdraża się osobno przez Wrangler.
+W pliku \`wrangler.toml\` dodane są źródła \`https://novydev.pl\` i \`https://www.novydev.pl\`. Zapisz zmianę \`pwa/config.js\`, wypchnij ją na \`main\` i poczekaj na zielony workflow. GitHub Actions wdraża Firebase Hosting oraz reguły Firestore; Worker wdraża się osobno przez Wrangler.
 
 ## 4. Uprawnienia konta serwisowego
 
@@ -46,7 +46,7 @@ W Google Cloud Console dla projektu \`huntly-game\` przejdź do **IAM & Admin �
 
 ## 5. Kontrola działania
 
-- Otwórz \`https://huntly-game.web.app\` na dwóch telefonach.
+- Otwórz \`https://novydev.pl/gra/\` na dwóch telefonach (Vercel przekazuje tę ścieżkę do Firebase Hosting bez zmiany adresu w pasku).
 - Utwórz pokój, dołącz drugim urządzeniem i rozpocznij rundę.
 - Podejdź na mniej niż 5 m. Złapanie powinno zakończyć się dopiero po minimum 2 sekundach.
 - Sprawdź, że łapanie zostanie odrzucone po oddaleniu się, utracie aktualnego GPS lub gdy gracz jest już złapany.
