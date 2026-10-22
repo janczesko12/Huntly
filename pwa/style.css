@@ -39,7 +39,7 @@ h1 em { font-style: normal; color: var(--green); }
 .hero-description { max-width: 450px; color: #a4b1a6; line-height: 1.75; font-size: 15px; }
 .feature-pills { display: flex; gap: 9px; flex-wrap: wrap; margin: 28px 0 0; }
 .feature-pills span { font-size: 9px; letter-spacing: .12em; font-weight: 900; color: #c0cbbd; padding: 9px 11px; border: 1px solid var(--border); background: #ffffff04; border-radius: 5px; }
-.radar-wrap { position: absolute; z-index: 0; right: 5%; top: 20px; width: 290px; height: 290px; opacity: .8; border-radius: 50%; background: repeating-linear-gradient(0deg, transparent 0 28px, #c7f36b0c 29px 30px), repeating-linear-gradient(90deg, transparent 0 28px, #c7f36b0c 29px 30px); mask-image: radial-gradient(circle, #000 18%, transparent 72%); }
+.radar-wrap { position: absolute; z-index: 0; right: 9%; top: 20px; width: 290px; height: 290px; opacity: .8; border-radius: 50%; background: repeating-linear-gradient(0deg, transparent 0 28px, #c7f36b0c 29px 30px), repeating-linear-gradient(90deg, transparent 0 28px, #c7f36b0c 29px 30px); mask-image: radial-gradient(circle, #000 18%, transparent 72%); }
 .radar-ring { position: absolute; border: 1px solid #b8f16f38; border-radius: 50%; left: 50%; top: 50%; transform: translate(-50%, -50%); }
 .ring-a { width: 70px; height: 70px; }.ring-b { width: 145px; height: 145px; }.ring-c { width: 225px; height: 225px; }
 .radar-sweep { position: absolute; width: 50%; height: 50%; left: 50%; top: 0; transform-origin: bottom left; background: conic-gradient(from 0deg, transparent 0deg, #c7f36b38 58deg, transparent 68deg); animation: radar-spin 7s linear infinite; border-radius: 0 100% 0 0; }
@@ -112,12 +112,12 @@ footer { max-width: 1240px; display: flex; justify-content: space-between; gap: 
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes marker-pulse { 0% { box-shadow: 0 0 0 0 #c7f36b62; } 75%, 100% { box-shadow: 0 0 0 9px #c7f36b00; } }
 @media (max-width: 900px) {
-  .radar-wrap { right: 2%; top: 15px; width: 220px; height: 220px; opacity: .45; }
+  .radar-wrap { right: 6%; top: 15px; width: 220px; height: 220px; opacity: .45; }
   .game-layout { grid-template-columns: minmax(0, 1fr) 270px; }
 }
 @media (max-width: 700px) {
   .topbar { padding: 18px 17px; }.brand { font-size: 17px; }.brand-mark { width: 35px; height: 35px; }.connection { font-size: 8px; }
-  .shell { padding: 20px 16px 42px; }.hero-copy { padding-top: 16px; }h1 { font-size: clamp(48px, 14vw, 69px); }.hero-description { font-size: 13px; max-width: 330px; }.radar-wrap { width: 160px; height: 160px; top: 40px; right: -20px; opacity: .24; }
+  .shell { padding: 20px 16px 42px; }.hero-copy { padding-top: 16px; }h1 { font-size: clamp(48px, 14vw, 69px); }.hero-description { font-size: 13px; max-width: 330px; }.radar-wrap { width: 160px; height: 160px; top: 40px; right: -4px; opacity: .24; }
   .panel-grid { grid-template-columns: 1fr; gap: 12px; margin-top: 32px; }.panel { padding: 22px; }.location-gate { align-items: flex-start; flex-wrap: wrap; }.gate-copy { min-width: calc(100% - 55px); }.location-gate .button { margin-left: 48px; }
   .game-heading { align-items: flex-start; }.game-heading h1 { font-size: 39px; }.role-badge { margin-top: 16px; }.game-toolbar { gap: 8px; padding: 10px; flex-wrap: wrap; }.players-count { font-size: 9px; }.game-layout { grid-template-columns: 1fr; }.map-card { order: 0; }.side-panel { order: 1; grid-template-columns: 1fr; }#map { height: 52vh; min-height: 330px; }.map-legend { gap: 11px; }.map-legend span { font-size: 8px; }footer { padding: 17px; font-size: 7px; }.game-footnote { line-height: 1.6; flex-wrap: wrap; }
 }
