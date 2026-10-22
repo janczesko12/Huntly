@@ -148,3 +148,223 @@ footer { max-width: 1240px; display: flex; justify-content: space-between; gap: 
 .install-status { min-height: 18px; margin-top: 10px; color: #8fa18f; font-size: 10px; line-height: 1.5; text-align: center; }
 .install-foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 22px; padding-top: 15px; border-top: 1px solid #ffffff0c; color: #637365; font-size: 8px; font-weight: 900; letter-spacing: .14em; }
 @media (max-width: 520px) { .install-gate { padding: 12px; align-items: start; }.install-card { border-radius: 18px; padding: 22px 18px; }.install-eyebrow { margin-top: 26px; }.install-benefits { gap: 6px; }.install-benefits > div { padding: 10px 8px; }.install-benefits strong { font-size: 10px; }.install-benefits small { font-size: 9px; }.install-card h1 { font-size: 42px; } }
+
+
+/* Full-screen iPhone installation walkthrough */
+.install-gate.ios-guide-open {
+  display: block;
+  padding: 0;
+  overflow: hidden;
+}
+.install-gate.ios-guide-open .install-card {
+  display: none;
+}
+.ios-install-guide {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  flex-direction: column;
+  gap: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: calc(18px + env(safe-area-inset-top, 0px)) clamp(18px, 5vw, 36px) calc(18px + env(safe-area-inset-bottom, 0px));
+  background: radial-gradient(ellipse at 12% 0%, #24391f 0, transparent 42%), radial-gradient(ellipse at 100% 78%, #1c3421 0, transparent 42%), #0b100d;
+  -webkit-overflow-scrolling: touch;
+}
+.install-gate.ios-guide-open .ios-install-guide {
+  display: flex;
+}
+.ios-guide-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: min(100%, 760px);
+  margin: 0 auto;
+}
+.ios-guide-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 950;
+  letter-spacing: .1em;
+  line-height: 1;
+}
+.ios-guide-brand small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .2em;
+}
+.ios-guide-brand .install-mark {
+  flex: 0 0 40px;
+}
+.ios-guide-back {
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  border: 1px solid #ffffff20;
+  border-radius: 999px;
+  color: var(--text);
+  background: #ffffff07;
+  font-size: 12px;
+  font-weight: 750;
+}
+.ios-guide-content {
+  width: min(100%, 760px);
+  margin: auto;
+  padding: 34px 0 26px;
+}
+.ios-guide-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--green);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .18em;
+}
+.ios-guide-content h1 {
+  margin: 18px 0 12px;
+  font-size: clamp(38px, 7vw, 58px);
+  line-height: 1;
+  letter-spacing: -.065em;
+}
+.ios-guide-content h1 em {
+  color: var(--green);
+  font-style: normal;
+}
+.ios-guide-lead {
+  max-width: 570px;
+  margin: 0 0 24px;
+  color: #a6b4a6;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.ios-guide-steps {
+  display: grid;
+  gap: 10px;
+}
+.ios-guide-step {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 42px;
+  align-items: center;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid #c7f36b22;
+  border-radius: 14px;
+  background: linear-gradient(120deg, #17231bd9, #101812d9);
+}
+.ios-guide-number {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: var(--green);
+  background: #c7f36b12;
+  font-size: 12px;
+  font-weight: 950;
+}
+.ios-guide-step strong {
+  display: block;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.ios-guide-step p {
+  margin: 5px 0 0;
+  color: #a6b4a6;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.ios-guide-symbol {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #c7f36b30;
+  border-radius: 12px;
+  color: var(--green);
+  background: #c7f36b0b;
+  font-size: 24px;
+  font-weight: 600;
+}
+.ios-share-symbol {
+  font-size: 27px;
+  line-height: 1;
+  position: relative;
+  padding-bottom: 5px;
+}
+.ios-share-symbol::after {
+  content: "";
+  position: absolute;
+  left: 11px;
+  bottom: 8px;
+  width: 16px;
+  height: 12px;
+  border: 2px solid var(--green);
+  border-top: 0;
+  border-radius: 0 0 4px 4px;
+}
+.ios-home-symbol { font-size: 29px; }
+.ios-add-symbol { font-size: 22px; }
+.ios-guide-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin-top: 16px;
+  padding: 15px;
+  border: 1px solid #c7f36b2b;
+  border-radius: 14px;
+  background: #c7f36b0a;
+}
+.ios-guide-note-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: #0b130b;
+  background: var(--green);
+  font-size: 13px;
+  font-weight: 900;
+}
+.ios-guide-note p {
+  margin: 0;
+  color: #a6b4a6;
+  font-size: 11px;
+  line-height: 1.65;
+}
+.ios-guide-note strong { color: var(--text); }
+.ios-guide-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  width: min(100%, 760px);
+  margin: 0 auto;
+  padding-top: 14px;
+  border-top: 1px solid #ffffff0c;
+  color: #637365;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+@media (max-width: 520px) {
+  .ios-guide-content { padding-top: 26px; }
+  .ios-guide-content h1 { font-size: clamp(36px, 10vw, 44px); }
+  .ios-guide-lead { font-size: 13px; margin-bottom: 18px; }
+  .ios-guide-steps { gap: 8px; }
+  .ios-guide-step { grid-template-columns: 30px minmax(0, 1fr) 34px; gap: 9px; padding: 12px 10px; }
+  .ios-guide-number { width: 30px; height: 30px; border-radius: 9px; font-size: 11px; }
+  .ios-guide-step strong { font-size: 12px; }
+  .ios-guide-step p { font-size: 10px; line-height: 1.5; }
+  .ios-guide-symbol { width: 33px; height: 33px; border-radius: 10px; }
+}
