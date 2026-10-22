@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b100d">
+<title>Huntly — edytor wyglądu</title>
+<style>
+:root{color-scheme:dark;--bg:#0b100d;--panel:#131d16;--edge:#2a3b2b;--green:#c7f36b;--text:#eef4e8;--muted:#9aa99b}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at 8% 0%,#21341d 0,transparent 36%),var(--bg);color:var(--text);font:14px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,input{font:inherit}
+button{cursor:pointer}
+.top{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:22px clamp(16px,4vw,40px);border-bottom:1px solid #ffffff10;position:sticky;top:0;background:#0b100de8;backdrop-filter:blur(16px);z-index:10}
+.brand{font-weight:950;letter-spacing:.08em;font-size:16px}.brand b{color:var(--green)}.brand small{display:block;font-size:9px;color:var(--muted);letter-spacing:.19em}
+.top a{color:var(--green);text-decoration:none;font-size:12px;font-weight:800}
+main{max-width:1240px;margin:0 auto;padding:28px clamp(14px,3vw,34px) 50px}
+.intro{margin-bottom:24px}.kicker{color:var(--green);font-size:10px;font-weight:900;letter-spacing:.2em;text-transform:uppercase}
+h1{font-size:clamp(28px,5vw,42px);letter-spacing:-.055em;line-height:1.04;margin:9px 0 10px}h1 em{font-style:normal;color:var(--green)}
+.intro p{color:var(--muted);max-width:680px;margin:0}
+.layout{display:grid;grid-template-columns:minmax(300px,410px) minmax(320px,1fr);gap:24px;align-items:start}
+.panel{background:linear-gradient(145deg,#142018f2,#0e1510f5);border:1px solid var(--edge);border-radius:20px;padding:20px;box-shadow:0 20px 60px #0003}
+.panel h2{font-size:16px;margin:0 0 6px;letter-spacing:-.02em}.sub{font-size:12px;color:var(--muted);margin:0 0 20px}
+.control{padding:14px 0;border-top:1px solid #ffffff0d}.control:first-of-type{border-top:0}.control-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:9px}.control label{font-size:12px;font-weight:750}.value{color:var(--green);font-size:12px;font-variant-numeric:tabular-nums;font-weight:850;white-space:nowrap}
+input[type=range]{display:block;width:100%;accent-color:var(--green);cursor:ew-resize}
+.hints{display:flex;justify-content:space-between;color:#718273;font-size:10px;margin-top:5px}
+.actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:18px}
+.btn{border:1px solid #ffffff1c;border-radius:11px;padding:11px 14px;background:#ffffff07;color:var(--text);font-size:12px;font-weight:800}
+.btn.primary{background:var(--green);border-color:var(--green);color:#10170e}.btn:hover{filter:brightness(1.08)}
+.note{font-size:11px;color:var(--muted);margin:14px 0 0}
+.output{margin-top:18px;display:none}.output.open{display:block}.output-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}.output strong{font-size:12px}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#080d09;border:1px solid #ffffff14;border-radius:12px;padding:14px;color:#c9eaa4;font:11px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;max-height:290px;overflow:auto;margin:0}
+.preview-panel{padding:20px;position:sticky;top:86px}.preview-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}.preview-head h2{margin:0;font-size:16px}.badge{font-size:10px;color:var(--green);border:1px solid #c7f36b40;border-radius:99px;padding:5px 9px;white-space:nowrap}
+.phone-stage{display:grid;place-items:center;min-height:600px;padding:10px;border-radius:15px;background:radial-gradient(ellipse at center,#1c2a1c 0,transparent 65%),#080c09;overflow:hidden}
+.phone{width:min(100%,390px);height:min(760px,78vh);min-height:560px;position:relative;overflow:hidden;border:1px solid #3b493b;border-radius:34px;background:#0b100d;box-shadow:0 28px 80px #0009;isolation:isolate}
+.phone:before{content:"";position:absolute;z-index:5;top:9px;left:50%;transform:translateX(-50%);width:90px;height:22px;border-radius:99px;background:#030504}
+.statusbar{height:43px;padding:14px 24px 0;font-size:11px;font-weight:800;display:flex;justify-content:space-between;position:relative;z-index:2}
+.phone-body{height:calc(100% - 43px);overflow-y:auto;overscroll-behavior:contain;padding:15px 17px 22px;background:radial-gradient(ellipse at 12% 0%,#24391f 0,transparent 42%),radial-gradient(ellipse at var(--glow-x,78%) var(--glow-y,78%),#1c3421 0,transparent 42%),#0b100d;scrollbar-width:thin}
+.preview-title{font-size:clamp(29px,7.8vw,39px);font-weight:950;line-height:.99;letter-spacing:-.065em;margin:7px 0 14px}.preview-title em{font-style:normal;color:var(--green)}
+.preview-lead{color:#a6b4a6;font-size:12px;line-height:1.7;margin:0 0 20px}
+.step{position:relative;display:grid;grid-template-columns:29px minmax(0,1fr) 33px;align-items:center;gap:9px;padding:12px 10px;border:1px solid #c7f36b22;border-radius:18px;margin:0 0 9px;background:linear-gradient(120deg,#17231bd9,#101812d9);min-height:84px}
+.num{display:grid;place-items:center;width:29px;height:29px;border-radius:9px;background:#c7f36b12;color:var(--green);font-size:11px;font-weight:950}
+.step-copy strong{display:block;font-size:12px;line-height:1.35}.step-copy small{display:block;margin-top:5px;color:#a6b4a6;font-size:10px;line-height:1.5}
+.step-icon{position:relative;left:calc(-1 * var(--icon-shift,26px));justify-self:center;width:var(--icon-size,33px);height:var(--icon-size,33px);border:1px solid #c7f36b40;border-radius:10px;background:#c7f36b0b;color:var(--green);display:grid;place-items:center;font-size:23px;font-weight:650;line-height:1;touch-action:none;cursor:grab;user-select:none}
+.step-icon:active{cursor:grabbing}.step-icon svg{width:72%;height:72%;overflow:visible}
+.share-svg{stroke:currentColor;fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.done{display:flex;gap:10px;align-items:flex-start;padding:14px;border:1px solid #c7f36b2b;border-radius:16px;background:#c7f36b0a;margin-top:15px}
+.info{flex:0 0 23px;height:23px;border-radius:50%;display:grid;place-items:center;background:var(--green);color:#10170e;font-weight:900}.done p{margin:0;color:#a6b4a6;font-size:10px;line-height:1.65}.done strong{color:var(--text)}
+.phone-foot{font-size:8px;letter-spacing:.14em;color:#637365;display:flex;justify-content:space-between;border-top:1px solid #ffffff0c;padding-top:16px;margin-top:25px}
+.preview-note{color:var(--muted);font-size:11px;margin:12px 0 0}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#d7f99e;color:#10170e;border-radius:99px;padding:11px 17px;font-size:12px;font-weight:850;box-shadow:0 8px 30px #0008;z-index:30;display:none}
+@media(max-width:850px){.layout{grid-template-columns:1fr}.preview-panel{position:static;grid-row:1}.phone-stage{min-height:0}.phone{height:690px;max-height:75vh;min-height:560px}.panel{padding:17px}.top{padding:17px}}
+@media(max-width:420px){main{padding-top:20px}.phone-stage{padding:0;background:transparent}.phone{border-radius:24px;width:100%;height:680px;min-height:550px}.preview-title{font-size:33px}.step{padding:11px 9px;grid-template-columns:29px minmax(0,1fr) 33px}.step-copy strong{font-size:11px}.step-copy small{font-size:9px}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">HUNTLY<b>.</b><small>EDYTOR WYGLĄDU</small></div>
+  <a href="./" target="_self">← Wróć do gry</a>
+</header>
+<main>
+  <section class="intro">
+    <div class="kicker">Narzędzie projektowe</div>
+    <h1>Ustaw wygląd <em>po swojemu.</em></h1>
+    <p>Przesuwaj ikonę myszą lub palcem albo użyj suwaków. Podgląd po prawej pokazuje, jak będzie wyglądać instrukcja instalacji na iPhonie. Na koniec skopiuj gotowy CSS.</p>
+  </section>
+  <div class="layout">
+    <section class="panel">
+      <h2>Ustawienia elementów</h2>
+      <p class="sub">Zmiany od razu widać w podglądzie. Ustawienia zapisują się lokalnie w tej przeglądarce.</p>
+      <div class="control">
+        <div class="control-head"><label for="shift">Przesunięcie ikon w lewo</label><output class="value" id="shiftValue">26 px</output></div>
+        <input id="shift" type="range" min="0" max="80" step="1" value="26">
+        <div class="hints"><span>0 px — w prawo</span><span>80 px — w lewo</span></div>
+      </div>
+      <div class="control">
+        <div class="control-head"><label for="size">Rozmiar ikon</label><output class="value" id="sizeValue">33 px</output></div>
+        <input id="size" type="range" min="25" max="56" step="1" value="33">
+        <div class="hints"><span>Małe</span><span>Duże</span></div>
+      </div>
+      <div class="control">
+        <div class="control-head"><label for="glowX">Położenie poświaty — poziom</label><output class="value" id="glowXValue">78%</output></div>
+        <input id="glowX" type="range" min="0" max="100" step="1" value="78">
+        <div class="hints"><span>Lewa strona</span><span>Prawa strona</span></div>
+      </div>
+      <div class="control">
+        <div class="control-head"><label for="glowY">Położenie poświaty — pion</label><output class="value" id="glowYValue">78%</output></div>
+        <input id="glowY" type="range" min="0" max="100" step="1" value="78">
+        <div class="hints"><span>Góra</span><span>Dół</span></div>
+      </div>
+      <div class="control">
+        <div class="control-head"><label for="cardGap">Odstęp między krokami</label><output class="value" id="cardGapValue">9 px</output></div>
+        <input id="cardGap" type="range" min="4" max="22" step="1" value="9">
+        <div class="hints"><span>Bliżej siebie</span><span>Dalej od siebie</span></div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="showCss">Pokaż gotowy CSS</button>
+        <button class="btn" id="reset">Przywróć domyślne</button>
+      </div>
+      <div class="output" id="output">
+        <div class="output-head"><strong>Kod CSS do wdrożenia</strong><button class="btn" id="copyCss">Kopiuj CSS</button></div>
+        <pre id="cssCode"></pre>
+        <p class="note">Ten edytor nie publikuje zmian automatycznie. Skopiuj kod, gdy skończysz ustawianie; dzięki temu przypadkowe przesunięcie nie zmieni wyglądu strony dla graczy.</p>
+      </div>
+    </section>
+    <section class="panel preview-panel">
+      <div class="preview-head"><h2>Podgląd na iPhonie</h2><span class="badge">NA ŻYWO</span></div>
+      <div class="phone-stage">
+        <div class="phone">
+          <div class="statusbar"><span>15:21</span><span>▮▮  Wi-Fi  47%</span></div>
+          <div class="phone-body" id="phoneBody">
+            <h2 class="preview-title">Dodaj Huntly<br><em>do ekranu<br>początkowego.</em></h2>
+            <p class="preview-lead">Wykonaj te kroki w przeglądarce Safari. Instalacja jest bezpłatna i nie wymaga App Store.</p>
+            <div class="step"><span class="num">01</span><div class="step-copy"><strong>Otwórz stronę w Safari</strong><small>Jeśli jesteś w przeglądarce innej aplikacji, otwórz menu i wybierz „Otwórz w Safari”.</small></div><div class="step-icon" data-draggable="true" aria-label="Przeciągnij, aby ustawić pozycję ikony">◉</div></div>
+            <div class="step"><span class="num">02</span><div class="step-copy"><strong>Naciśnij „Udostępnij”</strong><small>W Safari dotknij przycisku udostępniania — kwadratu ze strzałką skierowaną w górę.</small></div><div class="step-icon" data-draggable="true" aria-label="Przeciągnij, aby ustawić pozycję ikony"><svg viewBox="0 0 24 24" class="share-svg"><path d="M12 16V3m-6 6 6-6 6 6M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></div></div>
+            <div class="step"><span class="num">03</span><div class="step-copy"><strong>Wybierz „Dodaj do ekranu początkowego”</strong><small>Jeśli nie widzisz tej opcji, przewiń menu udostępniania w dół.</small></div><div class="step-icon" data-draggable="true" aria-label="Przeciągnij, aby ustawić pozycję ikony">＋</div></div>
+            <div class="step"><span class="num">04</span><div class="step-copy"><strong>Potwierdź przyciskiem „Dodaj”</strong><small>Ikona Huntly pojawi się na ekranie początkowym. Otwórz grę właśnie z tej ikony.</small></div><div class="step-icon" data-draggable="true" aria-label="Przeciągnij, aby ustawić pozycję ikony">✓</div></div>
+            <div class="done"><span class="info">i</span><p><strong>Gotowe?</strong> Zamknij tę kartę i uruchom Huntly z ekranu początkowego, aby wejść do gry w trybie pełnoekranowym.</p></div>
+            <div class="phone-foot"><span>HUNTLY PWA</span><span>PLAY FAIR. MOVE SMART.</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="preview-note">Wskazówka: przeciągnij dowolną ikonę w poziomie. Wszystkie cztery ikony ustawią się razem.</p>
+    </section>
+  </div>
+</main>
+<div class="toast" id="toast" role="status"></div>
+<script>
+(function(){
+  "use strict";
+  const defaults={shift:26,size:33,glowX:78,glowY:78,cardGap:9};
+  const keys=Object.keys(defaults);
+  const controls={};
+  keys.forEach(k=>controls[k]=document.getElementById(k));
+  const root=document.documentElement;
+  const preview=document.getElementById("phoneBody");
+  const toast=document.getElementById("toast");
+  let toastTimer=null;
+  function current(){const o={};keys.forEach(k=>o[k]=Number(controls[k].value));return o;}
+  function flash(message){toast.textContent=message;toast.style.display="block";clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.style.display="none",2200);}
+  function update(save=true){
+    const s=current();
+    root.style.setProperty("--icon-shift",s.shift+"px");
+    root.style.setProperty("--icon-size",s.size+"px");
+    preview.style.setProperty("--glow-x",s.glowX+"%");
+    preview.style.setProperty("--glow-y",s.glowY+"%");
+    document.querySelectorAll(".step").forEach(el=>el.style.marginBottom=s.cardGap+"px");
+    Object.entries(s).forEach(([k,v])=>{
+      const suffix=(k==="glowX"||k==="glowY")?"%":" px";
+      document.getElementById(k+"Value").textContent=v+suffix;
+    });
+    if(save){try{localStorage.setItem("huntly.style-designer.v1",JSON.stringify(s));}catch(e){}}
+    document.getElementById("cssCode").textContent=generateCss(s);
+  }
+  function generateCss(s){
+    return "/* Huntly — ustawienia instrukcji instalacji */\\n"+
+".ios-guide-symbol { transform: translateX(-"+s.shift+"px); }\\n"+
+".ios-guide-symbol { width: "+s.size+"px; height: "+s.size+"px; }\\n"+
+".ios-guide-steps { gap: "+s.cardGap+"px; }\\n"+
+".ios-install-guide { background: radial-gradient(ellipse at 12% 0%, #24391f 0, transparent 42%), radial-gradient(ellipse at "+s.glowX+"% "+s.glowY+"%, #1c3421 0, transparent 42%), #0b100d; }";
+  }
+  function load(){
+    let saved=null;try{saved=JSON.parse(localStorage.getItem("huntly.style-designer.v1")||"null");}catch(e){}
+    const s=Object.assign({},defaults,saved||{});
+    keys.forEach(k=>controls[k].value=String(Math.max(Number(controls[k].min),Math.min(Number(controls[k].max),Number(s[k])||0))));
+    update(false);
+  }
+  keys.forEach(k=>controls[k].addEventListener("input",()=>update()));
+  document.getElementById("reset").addEventListener("click",()=>{keys.forEach(k=>controls[k].value=String(defaults[k]));update();flash("Przywrócono ustawienia domyślne");});
+  document.getElementById("showCss").addEventListener("click",()=>{const el=document.getElementById("output");el.classList.toggle("open");document.getElementById("showCss").textContent=el.classList.contains("open")?"Ukryj CSS":"Pokaż gotowy CSS";});
+  document.getElementById("copyCss").addEventListener("click",async()=>{
+    const code=generateCss(current());
+    try{await navigator.clipboard.writeText(code);flash("CSS skopiowany do schowka");}
+    catch(e){const area=document.createElement("textarea");area.value=code;document.body.appendChild(area);area.select();const ok=document.execCommand("copy");area.remove();flash(ok?"CSS skopiowany do schowka":"Zaznacz kod i skopiuj ręcznie");}
+  });
+  document.querySelectorAll("[data-draggable]").forEach(el=>{
+    let startX=0,startShift=0,active=false;
+    el.addEventListener("pointerdown",event=>{active=true;startX=event.clientX;startShift=Number(controls.shift.value);el.setPointerCapture(event.pointerId);event.preventDefault();});
+    el.addEventListener("pointermove",event=>{if(!active)return;const dx=event.clientX-startX;controls.shift.value=String(Math.max(0,Math.min(80,startShift-dx)));update();});
+    const stop=()=>{active=false;};
+    el.addEventListener("pointerup",stop);el.addEventListener("pointercancel",stop);el.addEventListener("lostpointercapture",stop);
+  });
+  load();
+})();
+</script>
+</body>
+</html>
