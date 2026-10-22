@@ -34,7 +34,7 @@ firebase login
 This repository contains the browser-only PWA in `pwa/` and is configured to deploy to the existing Firebase project `huntly-game`:
 
 ```powershell
-firebase deploy --only hosting,functions,firestore:rules
+firebase deploy --only hosting,firestore:rules
 ```
 
 Live URL: https://huntly-game.web.app
@@ -65,7 +65,7 @@ Browser GPS data is client-supplied and can be spoofed by a modified client; acc
 
 ### Automated deploy
 
-The GitHub Actions workflow runs JavaScript syntax checks and the capture validation tests on pushes to `main`. To enable its production deployment, add a repository Actions secret named `FIREBASE_SERVICE_ACCOUNT_HUNTLY_GAME` containing the JSON key for a service account authorized to deploy Firebase Hosting, Cloud Functions and Firestore rules. The workflow deliberately skips deployment when this secret is missing.
+The GitHub Actions workflow runs JavaScript syntax checks and the capture validation tests on pushes to `main`. To enable production deployment, add the repository Actions secret `FIREBASE_SERVICE_ACCOUNT_HUNTLY_GAME` containing a JSON key for an account authorized to deploy Firebase Hosting and Firestore rules. The Cloudflare Worker has a separate setup described in `cloudflare/capture-worker/README.md`. The workflow deliberately skips deployment when this secret is missing.
 
 Cloudflare Worker deployment is a separate step described in `cloudflare/capture-worker/README.md`; it does not deploy Cloud Functions.
 
