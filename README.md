@@ -85,3 +85,9 @@ Test with two separate devices:
 - Verify player positions and room state update.
 - Test temporary location reveal, capture reporting, leaving a room and the end of the round.
 - Check the browser developer console if Firebase reports an error.
+
+## Automatic cleanup of idle lobbies
+
+Lobby rooms are removed after 15 minutes without a meaningful lobby action. Creating or joining a room, returning to it, leaving it, copying the join code, or changing the arena/host settings refreshes `lastActivityAt`. Background GPS updates and periodic refreshes do not count as user activity.
+
+A scheduled Firebase Function checks every minute and recursively deletes expired room documents and their player/capture subcollections. Only rooms still in the lobby state are expired; rounds that have started or ended are preserved. Deployment includes Hosting, Firestore rules, and Functions. Scheduled Functions use Cloud Scheduler and require a Firebase billing plan that supports scheduled functions.
