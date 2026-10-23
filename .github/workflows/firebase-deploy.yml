@@ -57,7 +57,7 @@ jobs:
           npm test
 
   deploy:
-    name: Deploy Hosting and Firestore rules
+    name: Deploy Hosting, Firestore rules and scheduled cleanup
     needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
@@ -88,7 +88,7 @@ jobs:
         run: npm install --global firebase-tools
       - name: Deploy app and Firestore rules
         if: steps.credential.outputs.available == 'true'
-        run: firebase deploy --project huntly-game --only hosting,firestore:rules --non-interactive
+        run: firebase deploy --project huntly-game --only hosting,firestore:rules,functions --non-interactive
       - name: Deployment summary
         if: steps.credential.outputs.available == 'true'
         run: |
