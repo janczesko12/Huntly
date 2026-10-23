@@ -65,3 +65,33 @@ test('rejects malformed positions instead of treating them as zero distance', ()
 test('distance helper returns NaN for missing coordinates', () => {
   assert.equal(Number.isNaN(distanceMeters({}, { lat: 1, lng: 1 })), true);
 });
+
+
+const { shouldDeleteInactiveLobby, LOBBY_INACTIVITY_MS } = require('./domain');
+
+test('expires a lobby after 15 minutes without meaningful activity', () => {
+  const now = 2_000_000_000_000;
+  assert.equal(shouldDeleteInactiveLobby({ status: 'lobby', lastActivityAt: now - LOBBY_INACTIVITY_MS }, now), true);
+});
+
+test('keeps a lobby active within the 15-minute window', () => {
+  const now = 2_000_000_000_000;
+  assert.equal(shouldDeleteInactiveLobby({ status: 'lobby', lastActivityAt: now - LOBBY_INACTIVITY_MS + 1000 }, now), false);
+});
+
+test('uses update/create time for older rooms without lastActivityAt', () => {
+  const now = 2_000_000_000_000;
+  assert.equal(shouldDeleteInactiveLobby({ status: 'lobby', updatedAt: now - LOBBY_INACTIVITY_MS - 1 }, now), true);
+  assert.equal(shouldDeleteInactiveLobby({ status: 'lobby', createdAt: now - LOBBY_INACTIVITY_MS - 1 }, now), true);
+});
+
+test('never expires rooms that have started or ended', () => {
+  const now = 2_000_000_000_000;
+  for (const status of ['countdown', 'escape', 'running', 'ended', 'expired']) {
+    assert.equal(shouldDeleteInactiveLobby({ status, lastActivityAt: now - LOBBY_INACTIVITY_MS * 5 }, now), false, status);
+  }
+});
+
+test('keeps a lobby when no usable timestamp exists', () => {
+  assert.equal(shouldDeleteInactiveLobby({ status: 'lobby' }, 2_000_000_000_000), false);
+});
