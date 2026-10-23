@@ -225,12 +225,142 @@
     return Array.from(bytes, function (byte) { return byte.toString(16).padStart(2, '0'); }).join('');
   }
 
-  async function captureApi(action, payload) {
-    if (!CAPTURE_API_URL || CAPTURE_API_URL.indexOf('workers.dev') < 0) throw new Error('Darmowy backend łapania nie jest jeszcze skonfigurowany. Ustaw captureApiUrl w pwa/config.js.');
+  async function nativeCaptureApi(action, payload) {
     const currentUser = state.auth && state.auth.currentUser;
-    if (!currentUser) throw new Error('Sesja wygasła. Odśwież stronę i spróbuj ponownie.');
+    if (!state.db || !state.uid || !currentUser) throw new Error('Sesja Firebase wygasła. Odśwież stronę i spróbuj ponownie.');
+
+    const roomCode = String(payload.roomCode || '').trim();
+    const runnerUid = String(payload.runnerUid || '').trim();
+    const nonce = String(payload.nonce || '').trim();
+    if (!/^\\d{6}$/.test(roomCode) || !/^[A-Za-z0-9_-]{1,128}$/.test(runnerUid) ||
+        runnerUid === state.uid || !/^[0-9a-f-]{32,36}$/i.test(nonce)) {
+      throw new Error('Nieprawidłowy pokój, gracz lub identyfikator łapania.');
+    }
+
+    const roomRef = state.db.collection('rooms').doc(roomCode);
+    const seekerRef = roomRef.collection('players').doc(state.uid);
+    const runnerRef = roomRef.collection('players').doc(runnerUid);
+    const holdRef = roomRef.collection('captureHolds').doc(state.uid + '_' + runnerUid);
+
+    if (action === 'cancel') {
+      const holdSnap = await holdRef.get();
+      if (holdSnap.exists) {
+        const hold = holdSnap.data();
+        if (hold.seekerUid === state.uid && hold.runnerUid === runnerUid && hold.nonce === nonce) {
+          await holdRef.delete();
+        }
+      }
+      return { ok: true, cancelled: true };
+    }
+
+    if (action === 'start') {
+      // Clean up an abandoned hold after its server-enforced expiry.
+      const existingSnap = await holdRef.get();
+      if (existingSnap.exists) {
+        const existing = existingSnap.data();
+        const age = Date.now() - timestampMillis(existing.startedAt);
+        if (existing.seekerUid === state.uid && existing.runnerUid === runnerUid &&
+            existing.nonce === nonce && age >= 0 && age <= CAPTURE_HOLD_TTL_MS) {
+          return {
+            ok: true,
+            startedAt: timestampMillis(existing.startedAt),
+            distanceMeters: distanceMeters(state.me, state.players.find(function (p) { return p.uid === runnerUid; }))
+          };
+        }
+        if (age >= 0 && age <= CAPTURE_HOLD_TTL_MS) {
+          throw new Error('Masz już aktywną próbę łapania tego gracza. Puść przycisk i spróbuj ponownie.');
+        }
+        if (existing.seekerUid === state.uid) await holdRef.delete();
+        else throw new Error('Ten gracz ma już aktywną próbę łapania. Spróbuj za chwilę.');
+      }
+
+      let checkedDistance = null;
+      await state.db.runTransaction(async function (transaction) {
+        const roomSnap = await transaction.get(roomRef);
+        const seekerSnap = await transaction.get(seekerRef);
+        const runnerSnap = await transaction.get(runnerRef);
+        if (!roomSnap.exists || !seekerSnap.exists || !runnerSnap.exists) {
+          throw new Error('Pokój lub gracz już nie istnieje.');
+        }
+        const room = roomSnap.data();
+        const seeker = Object.assign({ uid: state.uid }, seekerSnap.data());
+        const runner = Object.assign({ uid: runnerUid }, runnerSnap.data());
+        if (room.status !== 'running') throw new Error('Łapanie jest możliwe tylko podczas aktywnej rundy.');
+        if (seeker.role !== 'seeker' || seeker.alive === false) throw new Error('Tylko aktywny szukający może łapać.');
+        if (runner.role !== 'runner' || runner.alive === false) throw new Error('Ten gracz nie jest już uciekającym.');
+        const readiness = captureReadiness(seeker, runner, Date.now());
+        if (!readiness.ok) throw new Error(readiness.message);
+        checkedDistance = readiness.distance;
+        transaction.set(holdRef, {
+          seekerUid: state.uid,
+          runnerUid: runnerUid,
+          nonce: nonce,
+          startedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      });
+
+      const holdSnap = await holdRef.get();
+      if (!holdSnap.exists) throw new Error('Nie udało się zapisać próby łapania. Spróbuj ponownie.');
+      const savedHold = holdSnap.data();
+      if (savedHold.seekerUid !== state.uid || savedHold.runnerUid !== runnerUid || savedHold.nonce !== nonce) {
+        throw new Error('Próba łapania została zastąpiona. Spróbuj ponownie.');
+      }
+      return { ok: true, startedAt: timestampMillis(savedHold.startedAt), distanceMeters: checkedDistance };
+    }
+
+    if (action === 'finish') {
+      let capturedDistance = null;
+      await state.db.runTransaction(async function (transaction) {
+        const roomSnap = await transaction.get(roomRef);
+        const seekerSnap = await transaction.get(seekerRef);
+        const runnerSnap = await transaction.get(runnerRef);
+        const holdSnap = await transaction.get(holdRef);
+        if (!roomSnap.exists || !seekerSnap.exists || !runnerSnap.exists || !holdSnap.exists) {
+          throw new Error('Próba łapania wygasła. Spróbuj ponownie.');
+        }
+        const room = roomSnap.data();
+        const seeker = Object.assign({ uid: state.uid }, seekerSnap.data());
+        const runner = Object.assign({ uid: runnerUid }, runnerSnap.data());
+        const hold = holdSnap.data();
+        if (room.status !== 'running') throw new Error('Runda nie jest już aktywna.');
+        if (seeker.role !== 'seeker' || seeker.alive === false) throw new Error('Tylko aktywny szukający może łapać.');
+        if (runner.role !== 'runner' || runner.alive === false) throw new Error('Ten gracz nie jest już uciekającym.');
+        if (hold.seekerUid !== state.uid || hold.runnerUid !== runnerUid || hold.nonce !== nonce) {
+          throw new Error('Przytrzymanie zostało przerwane. Spróbuj ponownie.');
+        }
+        const startedAt = timestampMillis(hold.startedAt);
+        const elapsed = Date.now() - startedAt;
+        if (!startedAt || elapsed < CAPTURE_HOLD_MS) throw new Error('Przytrzymaj jeszcze chwilę.');
+        if (elapsed > CAPTURE_HOLD_TTL_MS) throw new Error('Próba łapania wygasła. Przytrzymaj przycisk ponownie.');
+        const readiness = captureReadiness(seeker, runner, Date.now());
+        if (!readiness.ok) throw new Error(readiness.message);
+        capturedDistance = readiness.distance;
+        transaction.update(runnerRef, {
+          role: 'seeker',
+          alive: true,
+          caught: true,
+          caughtBy: state.uid,
+          caughtAt: firebase.firestore.FieldValue.serverTimestamp(),
+          joinedSeekerTeamAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        transaction.delete(holdRef);
+      });
+      return { ok: true, distanceMeters: capturedDistance, joinedTeam: 'seeker' };
+    }
+
+    throw new Error('Nieznana operacja łapania.');
+  }
+
+  async function captureApi(action, payload) {
+    // The native Firestore path keeps catching functional on Firebase Spark.
+    // A separately deployed Cloudflare Worker remains supported when configured.
+    if (!CAPTURE_API_URL || CAPTURE_API_URL.indexOf('workers.dev') < 0) {
+      return nativeCaptureApi(action, payload);
+    }
+    const currentUser = state.auth && state.auth.currentUser;
+    if (!currentUser) throw new Error('Sesja Firebase wygasła. Odśwież stronę i spróbuj ponownie.');
     const token = await currentUser.getIdToken();
-    const response = await fetch(CAPTURE_API_URL.replace(/\/$/, '') + '/capture/' + action, {
+    const response = await fetch(CAPTURE_API_URL.replace(/\\/$/, '') + '/capture/' + action, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify(payload)
@@ -239,78 +369,6 @@
     try { result = await response.json(); } catch (e) {}
     if (!response.ok || result.ok === false) throw new Error(result.error || 'Backend łapania zwrócił błąd (' + response.status + ').');
     return result;
-  }
-
-  function resetCaptureButton(button) {
-    if (!button) return;
-    button.classList.remove('is-holding');
-    button.style.removeProperty('--hold-progress');
-    button.textContent = 'Przytrzymaj 2 s';
-    button.disabled = false;
-  }
-
-  function cancelCaptureHold(uid) {
-    const hold = state.captureHolds.get(uid);
-    if (!hold) return;
-    if (hold.interval) clearInterval(hold.interval);
-    state.captureHolds.delete(uid);
-    if (hold.serverStarted && !hold.finishing) captureApi('cancel', { roomCode: state.roomCode, runnerUid: uid, nonce: hold.nonce }).catch(function () {});
-    resetCaptureButton(hold.button);
-  }
-
-  function startCaptureHold(player, button) {
-    if (state.captureHolds.has(player.uid)) return;
-    const readiness = captureReadiness(state.me, player, Date.now());
-    if (!readiness.ok) { toast('Nie można jeszcze złapać', readiness.message, 'error'); renderPlayers(); return; }
-    let nonce;
-    try { nonce = makeCaptureNonce(); } catch (error) { toast('Nie można rozpocząć łapania', error.message, 'error'); return; }
-    const hold = { interval: null, button: button, nonce: nonce, serverStarted: false, finishing: false, startedAt: 0 };
-    state.captureHolds.set(player.uid, hold);
-    button.classList.add('is-holding');
-    button.style.setProperty('--hold-progress', '0%');
-    button.textContent = 'Sprawdzam GPS…';
-    button.disabled = false;
-    captureApi('start', { roomCode: state.roomCode, runnerUid: player.uid, nonce: nonce }).then(function (result) {
-      if (state.captureHolds.get(player.uid) !== hold) { captureApi('cancel', { roomCode: state.roomCode, runnerUid: player.uid, nonce: nonce }).catch(function () {}); return; }
-      hold.serverStarted = true;
-      hold.startedAt = Number(result.startedAt) || Date.now();
-      button.disabled = false;
-      function updateHoldProgress() {
-        const current = state.players.find(function (p) { return p.uid === player.uid; }) || player;
-        const allowed = state.room && state.room.status === 'running' && state.me && state.me.role === 'seeker' && current.role === 'runner' && current.alive !== false && captureReadiness(state.me, current, Date.now()).ok;
-        if (!allowed) { cancelCaptureHold(player.uid); toast('Przerwano łapanie', 'Gracz wyszedł z zasięgu albo GPS jest nieaktualny.', 'error'); renderPlayers(); return; }
-        const elapsed = Math.max(0, Date.now() - hold.startedAt);
-        const progress = Math.min(1, elapsed / CAPTURE_HOLD_MS);
-        const remaining = Math.max(0, (CAPTURE_HOLD_MS - elapsed) / 1000);
-        button.style.setProperty('--hold-progress', (progress * 100).toFixed(1) + '%');
-        button.textContent = progress >= 1 ? 'Sprawdzam…' : 'Trzymaj ' + remaining.toFixed(1) + ' s';
-        if (progress >= 1) {
-          if (hold.interval) clearInterval(hold.interval);
-          state.captureHolds.delete(player.uid);
-          hold.finishing = true;
-          button.classList.remove('is-holding');
-          button.style.removeProperty('--hold-progress');
-          button.disabled = true;
-          catchPlayer(current, nonce).finally(function () { renderPlayers(); });
-        }
-      }
-      hold.interval = setInterval(updateHoldProgress, 50);
-      updateHoldProgress();
-    }).catch(function (error) {
-      if (state.captureHolds.get(player.uid) === hold) { state.captureHolds.delete(player.uid); resetCaptureButton(button); toast('Nie udało się rozpocząć łapania', error.message || friendlyError(error), 'error'); renderPlayers(); }
-    });
-  }
-
-  function currentZoneRadius(room, now) {
-    if (!room) return 500;
-    const initial = Math.max(50, Number(room.areaRadiusMeters) || 500);
-    if (room.status !== 'running' || !room.zoneShrinkEnabled) return initial;
-    const desiredFinal = Math.max(50, Number(room.zoneFinalRadiusMeters) || 100);
-    const finalRadius = Math.min(desiredFinal, Math.max(50, initial * 0.75));
-    const startedAt = Number(room.zoneShrinkStartAtMs) || Number(room.startedAtMs) || now || Date.now();
-    const durationMs = Math.max(1, Number(room.zoneShrinkDurationSeconds) || (Number(room.roundMinutes) || 20) * 60) * 1000;
-    const progress = Math.max(0, Math.min(1, ((now || Date.now()) - startedAt) / durationMs));
-    return initial + (finalRadius - initial) * progress;
   }
 
   function isOutsidePlayArea(position, room) {

@@ -27,6 +27,41 @@ service cloud.firestore {
         && (data.accuracy is number && data.accuracy >= 0 && data.accuracy <= 1000);
     }
 
+    function freshAccuratePosition(data) {
+      return validCoordinates(data)
+        && data.accuracy <= 10
+        && data.locationUpdatedAt is timestamp
+        && data.locationUpdatedAt <= request.time
+        && data.locationUpdatedAt >= request.time - duration.value(15, 's');
+    }
+
+    function capturePositionsValid(roomId, seekerUid, runnerUid) {
+      let room = get(roomPath(roomId)).data;
+      let seeker = get(playerPath(roomId, seekerUid)).data;
+      let runner = get(playerPath(roomId, runnerUid)).data;
+      return room.status == 'running'
+        && seekerUid != runnerUid
+        && seeker.role == 'seeker' && seeker.alive != false
+        && runner.role == 'runner' && runner.alive != false
+        && freshAccuratePosition(seeker)
+        && freshAccuratePosition(runner)
+        // Conservative 3.1e-5 degree bound on each axis: under 5m combined,
+        // even near the equator. The real GPS distance is also checked in the client.
+        && math.abs(seeker.lat - runner.lat) <= 0.000031
+        && math.abs(seeker.lng - runner.lng) <= 0.000031;
+    }
+
+    function captureHoldValid(roomId, seekerUid, runnerUid) {
+      let holdPath = /databases/$(database)/documents/rooms/$(roomId)/captureHolds/$(seekerUid + '_' + runnerUid);
+      let hold = get(holdPath).data;
+      return exists(holdPath)
+        && hold.seekerUid == seekerUid
+        && hold.runnerUid == runnerUid
+        && hold.startedAt is timestamp
+        && hold.startedAt <= request.time - duration.value(2, 's')
+        && hold.startedAt >= request.time - duration.value(10, 's');
+    }
+
     match /rooms/{roomId} {
       allow get: if signedIn();
       allow list: if false;
@@ -84,9 +119,48 @@ service cloud.firestore {
             && request.resource.data.role in ['seeker', 'runner']
             && request.resource.data.alive == true
           )
+          ||
+          (
+            playerId != request.auth.uid
+            && get(roomPath(roomId)).data.status == 'running'
+            && get(playerPath(roomId, request.auth.uid)).data.role == 'seeker'
+            && resource.data.role == 'runner'
+            && resource.data.alive != false
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'role', 'alive', 'caught', 'caughtBy', 'caughtAt', 'joinedSeekerTeamAt'
+            ])
+            && request.resource.data.role == 'seeker'
+            && request.resource.data.alive == true
+            && request.resource.data.caught == true
+            && request.resource.data.caughtBy == request.auth.uid
+            && request.resource.data.caughtAt == request.time
+            && request.resource.data.joinedSeekerTeamAt == request.time
+            && capturePositionsValid(roomId, request.auth.uid, playerId)
+            && captureHoldValid(roomId, request.auth.uid, playerId)
+          )
         );
 
         allow delete: if signedIn() && playerId == request.auth.uid;
+      }
+
+      match /captureHolds/{holdId} {
+        // Missing reads are allowed so a seeker can check whether a hold exists.
+        allow get: if signedIn() && (resource == null || resource.data.seekerUid == request.auth.uid);
+        allow list: if false;
+        allow create: if signedIn()
+          && resource == null
+          && holdId == request.auth.uid + '_' + request.resource.data.runnerUid
+          && request.resource.data.keys().hasOnly(['seekerUid', 'runnerUid', 'nonce', 'startedAt'])
+          && request.resource.data.seekerUid == request.auth.uid
+          && request.resource.data.runnerUid is string
+          && request.resource.data.runnerUid != request.auth.uid
+          && request.resource.data.nonce is string
+          && request.resource.data.nonce.size() >= 32
+          && request.resource.data.nonce.size() <= 36
+          && request.resource.data.startedAt == request.time
+          && capturePositionsValid(roomId, request.auth.uid, request.resource.data.runnerUid);
+        allow update: if false;
+        allow delete: if signedIn() && resource.data.seekerUid == request.auth.uid;
       }
     }
   }
