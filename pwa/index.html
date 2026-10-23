@@ -9,7 +9,7 @@
   <link rel="icon" href="./icon.jpg?v=20261022-selected-image" type="image/jpeg" sizes="192x192">
   <link rel="apple-touch-icon" href="./icon.jpg?v=20261022-selected-image">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="./style.css?v=20261024-start-sequence">
+  <link rel="stylesheet" href="./style.css?v=20261024-lobby-fixes">
   <title>Huntly — Złap trop</title>
 </head>
 <body>
@@ -108,7 +108,7 @@
       </section>
     </section>
     <section id="game" class="game-view hidden">
-      <div class="game-heading"><div><div class="eyebrow"><span class="eyebrow-line"></span> AKTYWNA ROZGRYWKA</div><h1 id="roomTitle">Pokój <em>------</em></h1><p id="roomSubtitle">Oczekiwanie na graczy</p></div><div class="role-badge" id="roleBadge">RUNNER</div></div>
+      <div class="game-heading"><div><div class="eyebrow"><span class="eyebrow-line"></span> AKTYWNA ROZGRYWKA</div><h1 id="roomTitle">Pokój <em>------</em></h1><p id="roomSubtitle">Oczekiwanie na graczy</p></div><div class="role-badge" id="roleBadge">ROLA LOSOWANA</div></div>
       <div class="game-toolbar">
         <div class="room-code-block"><span>KOD DOŁĄCZENIA</span><strong id="roomCodeDisplay">------</strong></div>
         <button id="copyCodeBtn" class="icon-button" aria-label="Kopiuj kod">⧉</button>
@@ -116,7 +116,7 @@
         <button id="leaveBtn" class="button button-danger button-small">Opuść</button>
       </div>
       <div class="game-layout">
-        <div class="map-card"><div class="map-topline"><span><span class="live-dot"></span> MAPA ROZGRYWKI</span><span id="mapUpdated">Czekam na GPS</span></div><div id="map"></div><div class="map-legend"><span><i class="legend-seeker"></i> Szukający</span><span><i class="legend-runner"></i> Uciekający</span><span><i class="legend-you"></i> Ty</span></div></div>
+        <div class="map-card"><div class="map-topline"><span><span class="live-dot"></span> MAPA ROZGRYWKI</span><span id="mapUpdated">Czekam na GPS</span></div><div id="map"></div><div class="map-legend"><span><i class="legend-seeker"></i> Szukający</span><span><i class="legend-runner"></i> Uciekający</span><span><i class="legend-you"></i> Ty</span></div><div id="arenaControls" class="arena-controls hidden"><div class="arena-controls-title"><strong>USTAW ARENĘ</strong><span id="arenaCenterLabel">Środek areny nie został ustawiony</span></div><button id="arenaAtMeBtn" type="button" class="button button-secondary"><span>⌖</span> Ustaw środek na mojej pozycji</button><p>Możesz też dotknąć mapy, aby ustawić środek okręgu w wybranym punkcie.</p></div><div id="arenaReadOnly" class="arena-readonly hidden"><strong>ARENA</strong><span id="arenaReadOnlyText">Tylko host może ustawić arenę.</span></div></div>
         <aside class="side-panel">
           <div class="status-card"><span class="card-label">STATUS ROZGRYWKI</span><strong id="gameStatus">Lobby</strong><div id="timer" class="timer">--:--</div><span id="statusHint" class="muted">Czekamy na start</span></div>
           <div class="roster-card"><div class="roster-heading"><div><span class="card-label">W DRUŻYNIE</span><h3>Gracze <span id="rosterCount">0</span></h3></div><span class="roster-symbol">◉</span></div><div id="playersList" class="players-list"></div></div>
@@ -153,6 +153,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="./config.js"></script>
-  <script src="./app.js?v=20261024-start-sequence"></script>
+  <script src="./app.js?v=20261024-lobby-fixes"></script>
 </body>
 </html>
