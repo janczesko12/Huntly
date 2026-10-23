@@ -976,7 +976,44 @@
         });
       }
     });
-    $('seekerCount').addEventListener('change', updateStartButton);
+    $('seekerCount').addEventListener('change', function () {
+      const count = Math.max(1, Math.min(4, Number(this.value) || 1));
+      this.value = String(count);
+      if (state.room && state.room.hostUid === state.uid && state.room.status === 'lobby') {
+        state.room.seekerCount = count;
+        state.db.collection('rooms').doc(state.roomCode).update({
+          seekerCount: count,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(function (error) {
+          toast('Nie udało się zapisać liczby szukających', friendlyError(error), 'error');
+        });
+      }
+      updateStartButton();
+    });
+    $('zoneShrinkEnabled').addEventListener('change', function () {
+      if (state.room && state.room.hostUid === state.uid && state.room.status === 'lobby') {
+        const enabled = this.value === 'on';
+        state.room.zoneShrinkEnabled = enabled;
+        state.db.collection('rooms').doc(state.roomCode).update({
+          zoneShrinkEnabled: enabled,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(function (error) {
+          toast('Nie udało się zapisać ustawienia strefy', friendlyError(error), 'error');
+        });
+      }
+    });
+    $('zoneFinalRadiusMeters').addEventListener('change', function () {
+      if (state.room && state.room.hostUid === state.uid && state.room.status === 'lobby') {
+        const radius = Math.max(50, Number(this.value) || 100);
+        state.room.zoneFinalRadiusMeters = radius;
+        state.db.collection('rooms').doc(state.roomCode).update({
+          zoneFinalRadiusMeters: radius,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(function (error) {
+          toast('Nie udało się zapisać promienia końcowego', friendlyError(error), 'error');
+        });
+      }
+    });
     $('leaveBtn').addEventListener('click', leaveRoom);
     $('endBtn').addEventListener('click', function () { if (confirm('Zakończyć rundę?')) finishRoom('Host zakończył rundę.'); });
     $('copyCodeBtn').addEventListener('click', copyCode);
