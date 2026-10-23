@@ -435,6 +435,7 @@
         status: 'lobby',
         createdAt: now,
         updatedAt: now,
+        lastActivityAt: now,
         escapeSeconds: 30,
         roundMinutes: 20,
         areaCenterLat: state.gps.lat,
@@ -490,6 +491,8 @@
         onlineAt: firebase.firestore.FieldValue.serverTimestamp()
       };
       await playerRef.set(me, { merge: true });
+      const activityStamp = firebase.firestore.FieldValue.serverTimestamp();
+      await ref.update({ lastActivityAt: activityStamp, updatedAt: activityStamp });
       state.roomCode = code;
       state.me = { uid: state.uid, name: name, role: me.role, alive: me.alive };
       sessionStore();
@@ -514,11 +517,13 @@
       const roomRef = state.db.collection('rooms').doc(String(saved.roomCode));
       const roomSnap = await roomRef.get();
       if (!roomSnap.exists) { clearSession(); return; }
+      if (roomSnap.data().status === 'expired') { clearSession(); toast('Lobby wygasło', 'Pokój usunięto po 15 minutach bezczynności.', 'error'); return; }
       const playerRef = roomRef.collection('players').doc(state.uid);
       const playerSnap = await playerRef.get();
       if (!playerSnap.exists) { clearSession(); return; }
       const d = playerSnap.data();
       await playerRef.update({ lat: state.gps.lat, lng: state.gps.lng, accuracy: state.gps.accuracy, onlineAt: firebase.firestore.FieldValue.serverTimestamp(), locationUpdatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      if (roomSnap.data().status === 'lobby') await markLobbyActivityForRoom(roomRef);
       state.roomCode = String(saved.roomCode);
       state.me = { uid: state.uid, name: d.name || saved.name || 'Gracz', role: d.role || 'runner', alive: d.alive !== false };
       sessionStore();
@@ -550,6 +555,22 @@
       const me = state.players.find(function (player) { return player.uid === state.uid; }) || state.me;
       badge.textContent = me && me.role === 'seeker' ? 'SZUKAJĄCY' : 'UCIEKAJĄCY';
     }
+  }
+
+  async function markLobbyActivityForRoom(roomRef) {
+    const stamp = firebase.firestore.FieldValue.serverTimestamp();
+    try {
+      await roomRef.update({ lastActivityAt: stamp, updatedAt: stamp });
+      return true;
+    } catch (error) {
+      console.warn('Could not mark lobby activity:', error);
+      return false;
+    }
+  }
+
+  function markLobbyActivity() {
+    if (!state.db || !state.roomCode || !state.room || state.room.status !== 'lobby') return Promise.resolve(false);
+    return markLobbyActivityForRoom(state.db.collection('rooms').doc(state.roomCode));
   }
 
   function canEditArena() {
@@ -590,10 +611,12 @@
     try {
       const centerLat = Number(lat.toFixed(6));
       const centerLng = Number(lng.toFixed(6));
+      const activityStamp = firebase.firestore.FieldValue.serverTimestamp();
       await state.db.collection('rooms').doc(state.roomCode).update({
         areaCenterLat: centerLat,
         areaCenterLng: centerLng,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        lastActivityAt: activityStamp,
+        updatedAt: activityStamp
       });
       state.room.areaCenterLat = centerLat;
       state.room.areaCenterLng = centerLng;
@@ -626,6 +649,11 @@
         return;
       }
       state.room = snap.data();
+      if (state.room.status === 'expired') {
+        toast('Lobby wygasło', 'Pokój usunięto po 15 minutach bezczynności.', 'error');
+        exitRoom(true);
+        return;
+      }
       state.lastRoomUpdate = Date.now();
       updateRoleBadge();
       updateArenaControls();
@@ -1059,8 +1087,13 @@
     if (!code) return;
     if (!confirm('Na pewno chcesz opuścić pokój?')) return;
     try {
-      await state.db.collection('rooms').doc(code).collection('players').doc(state.uid).delete();
       const roomRef = state.db.collection('rooms').doc(code);
+      const beforeLeave = await roomRef.get();
+      if (beforeLeave.exists && beforeLeave.data().status === 'lobby') {
+        const activityStamp = firebase.firestore.FieldValue.serverTimestamp();
+        await roomRef.update({ lastActivityAt: activityStamp, updatedAt: activityStamp });
+      }
+      await roomRef.collection('players').doc(state.uid).delete();
       const snap = await roomRef.get();
       if (snap.exists && snap.data().hostUid === state.uid) {
         const next = state.players.find(function (p) { return p.uid !== state.uid; });
@@ -1085,6 +1118,7 @@
 
   async function copyCode() {
     if (!state.roomCode) return;
+    await markLobbyActivity();
     try {
       await navigator.clipboard.writeText(state.roomCode);
       toast('Kod skopiowany', state.roomCode, 'success');
@@ -1216,6 +1250,11 @@
         button.textContent = oldText;
       }
     });
+    ['escapeSeconds', 'roundMinutes', 'revealEverySeconds', 'revealDurationSeconds'].forEach(function (id) {
+      $(id).addEventListener('change', function () {
+        if (canEditArena()) markLobbyActivity();
+      });
+    });
     $('areaRadiusMeters').addEventListener('change', function () {
       if (state.room && state.room.hostUid === state.uid && state.room.status === 'lobby') {
         const radius = Math.max(50, Number(this.value) || 500);
@@ -1223,6 +1262,7 @@
         renderMap();
         state.db.collection('rooms').doc(state.roomCode).update({
           areaRadiusMeters: radius,
+          lastActivityAt: firebase.firestore.FieldValue.serverTimestamp(),
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }).catch(function (error) {
           toast('Nie udało się zapisać promienia', friendlyError(error), 'error');
@@ -1236,6 +1276,7 @@
         state.room.seekerCount = count;
         state.db.collection('rooms').doc(state.roomCode).update({
           seekerCount: count,
+          lastActivityAt: firebase.firestore.FieldValue.serverTimestamp(),
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }).catch(function (error) {
           toast('Nie udało się zapisać liczby szukających', friendlyError(error), 'error');
@@ -1249,6 +1290,7 @@
         state.room.zoneShrinkEnabled = enabled;
         state.db.collection('rooms').doc(state.roomCode).update({
           zoneShrinkEnabled: enabled,
+          lastActivityAt: firebase.firestore.FieldValue.serverTimestamp(),
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }).catch(function (error) {
           toast('Nie udało się zapisać ustawienia strefy', friendlyError(error), 'error');
@@ -1261,6 +1303,7 @@
         state.room.zoneFinalRadiusMeters = radius;
         state.db.collection('rooms').doc(state.roomCode).update({
           zoneFinalRadiusMeters: radius,
+          lastActivityAt: firebase.firestore.FieldValue.serverTimestamp(),
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }).catch(function (error) {
           toast('Nie udało się zapisać promienia końcowego', friendlyError(error), 'error');
