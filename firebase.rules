@@ -72,6 +72,7 @@ service cloud.firestore {
       allow update: if isHost(roomId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'hostUid', 'status', 'escapeSeconds', 'roundMinutes',
+          'seekerUids', 'countdownStartedAtMs', 'countdownEndsAtMs', 'roleRevealEndsAtMs',
           'startedAtMs', 'escapeEndsAtMs', 'roundEndsAtMs',
           'revealEverySeconds', 'revealDurationSeconds', 'areaRadiusMeters',
           'areaCenterLat', 'areaCenterLng', 'seekerCount',
@@ -79,7 +80,7 @@ service cloud.firestore {
           'zoneShrinkStartAtMs', 'zoneShrinkDurationSeconds',
           'endedAt', 'updatedAt'
         ])
-        && request.resource.data.status in ['lobby', 'escape', 'running', 'ended']
+        && request.resource.data.status in ['lobby', 'countdown', 'escape', 'running', 'ended']
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['hostUid'])
           || exists(playerPath(roomId, request.resource.data.hostUid)));
       allow delete: if false;
