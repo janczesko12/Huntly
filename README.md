@@ -88,6 +88,6 @@ Test with two separate devices:
 
 ## Automatic cleanup of idle lobbies
 
-Lobby rooms are removed after 15 minutes without a meaningful lobby action. Creating or joining a room, returning to it, leaving it, copying the join code, or changing the arena/host settings refreshes `lastActivityAt`. Background GPS updates and periodic refreshes do not count as user activity.
+Lobby rooms are removed after 15 minutes without a meaningful lobby action. Creating or joining a room, returning to it, leaving it, copying the join code, or changing arena/host settings refreshes `lastActivityAt`. Background GPS updates and periodic refreshes do not count as user activity.
 
-A scheduled Firebase Function checks every minute and recursively deletes expired room documents and their player/capture subcollections. Only rooms still in the lobby state are expired; rounds that have started or ended are preserved. Deployment includes Hosting, Firestore rules, and Functions. Scheduled Functions use Cloud Scheduler and require a Firebase billing plan that supports scheduled functions.
+The `.github/workflows/cleanup-inactive-lobbies.yml` GitHub Actions workflow checks every 5 minutes and recursively deletes expired lobby documents plus their player/capture subcollections. It uses the existing repository secret `FIREBASE_SERVICE_ACCOUNT_HUNTLY_GAME`; no scheduled Firebase Function or Blaze upgrade is needed. Because the server-side sweep runs every 5 minutes, deletion occurs at the first sweep after the 15-minute inactivity threshold (normally within about 15–20 minutes). Only rooms still in the lobby state are deleted; rounds that have started or ended are preserved.
