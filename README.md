@@ -7,7 +7,7 @@ Huntly is a browser-based outdoor hide-and-seek game for Android and iPhone. It 
 - Animated mobile-first Huntly UI.
 - Firebase Anonymous Authentication and Firestore-backed rooms.
 - Create a room, share a join code, join the lobby, and restore the current player after refresh.
-- Host/searcher and runner roles.
+- Host/searcher and runner roles, with a shared full-screen 3–2–1 countdown and a role-specific reveal on every connected phone before the escape phase begins.
 - Adjustable escape time, location-signal cadence and round duration.
 - Leaflet map using OpenStreetMap tiles.
 - Location required to create/join/resume a room; GPS updates every 10 seconds while the page is active and browser geolocation is available.
