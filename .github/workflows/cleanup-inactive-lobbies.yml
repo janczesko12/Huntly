@@ -1,0 +1,34 @@
+name: Cleanup inactive Huntly lobbies
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cleanup-inactive-huntly-lobbies
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Delete lobbies inactive for 15 minutes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Firebase Admin SDK
+        working-directory: functions
+        run: npm install --no-audit --no-fund
+      - name: Delete expired lobby rooms
+        working-directory: functions
+        env:
+          FIREBASE_SERVICE_ACCOUNT_HUNTLY_GAME: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HUNTLY_GAME }}
+        run: node cleanup-inactive-lobbies.js
