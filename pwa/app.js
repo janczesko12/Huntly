@@ -232,7 +232,7 @@
     const roomCode = String(payload.roomCode || '').trim();
     const runnerUid = String(payload.runnerUid || '').trim();
     const nonce = String(payload.nonce || '').trim();
-    if (!/^\\d{6}$/.test(roomCode) || !/^[A-Za-z0-9_-]{1,128}$/.test(runnerUid) ||
+    if (!/^\d{6}$/.test(roomCode) || !/^[A-Za-z0-9_-]{1,128}$/.test(runnerUid) ||
         runnerUid === state.uid || !/^[0-9a-f-]{32,36}$/i.test(nonce)) {
       throw new Error('Nieprawidłowy pokój, gracz lub identyfikator łapania.');
     }
@@ -360,7 +360,7 @@
     const currentUser = state.auth && state.auth.currentUser;
     if (!currentUser) throw new Error('Sesja Firebase wygasła. Odśwież stronę i spróbuj ponownie.');
     const token = await currentUser.getIdToken();
-    const response = await fetch(CAPTURE_API_URL.replace(/\\/$/, '') + '/capture/' + action, {
+    const response = await fetch(CAPTURE_API_URL.replace(/\/$/, '') + '/capture/' + action, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify(payload)
