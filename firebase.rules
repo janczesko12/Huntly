@@ -69,20 +69,34 @@ service cloud.firestore {
         && request.resource.data.hostUid == request.auth.uid
         && request.resource.data.code == roomId
         && request.resource.data.status == 'lobby';
-      allow update: if isHost(roomId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'hostUid', 'status', 'escapeSeconds', 'roundMinutes',
-          'seekerUids', 'countdownStartedAtMs', 'countdownEndsAtMs', 'roleRevealEndsAtMs',
-          'startedAtMs', 'escapeEndsAtMs', 'roundEndsAtMs',
-          'revealEverySeconds', 'revealDurationSeconds', 'areaRadiusMeters',
-          'areaCenterLat', 'areaCenterLng', 'seekerCount',
-          'zoneShrinkEnabled', 'zoneFinalRadiusMeters',
-          'zoneShrinkStartAtMs', 'zoneShrinkDurationSeconds',
-          'endedAt', 'updatedAt'
-        ])
-        && request.resource.data.status in ['lobby', 'countdown', 'escape', 'running', 'ended']
-        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['hostUid'])
-          || exists(playerPath(roomId, request.resource.data.hostUid)));
+      allow update: if resource.data.status != 'expired' && (
+        (
+          isHost(roomId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'hostUid', 'status', 'escapeSeconds', 'roundMinutes',
+            'seekerUids', 'countdownStartedAtMs', 'countdownEndsAtMs', 'roleRevealEndsAtMs',
+            'startedAtMs', 'escapeEndsAtMs', 'roundEndsAtMs',
+            'revealEverySeconds', 'revealDurationSeconds', 'areaRadiusMeters',
+            'areaCenterLat', 'areaCenterLng', 'seekerCount',
+            'zoneShrinkEnabled', 'zoneFinalRadiusMeters',
+            'zoneShrinkStartAtMs', 'zoneShrinkDurationSeconds',
+            'endedAt', 'updatedAt', 'lastActivityAt'
+          ])
+          && request.resource.data.status in ['lobby', 'countdown', 'escape', 'running', 'ended']
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastActivityAt'])
+            || request.resource.data.lastActivityAt == request.time)
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['hostUid'])
+            || exists(playerPath(roomId, request.resource.data.hostUid)))
+        )
+        ||
+        (
+          isMember(roomId)
+          && resource.data.status == 'lobby'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastActivityAt', 'updatedAt'])
+          && request.resource.data.lastActivityAt == request.time
+          && request.resource.data.updatedAt == request.time
+        )
+      );
       allow delete: if false;
 
       match /players/{playerId} {
