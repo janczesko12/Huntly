@@ -20,7 +20,8 @@
     app: null, auth: null, db: null, uid: null, roomCode: null, room: null, me: null,
     players: [], roomUnsub: null, playersUnsub: null, map: null, markers: new Map(),
     gps: null, gpsWatch: null, gpsTimer: null, refreshTimer: null, gameTimer: null, areaCircle: null,
-    roomBusy: false, locationReady: false, lastGpsAt: 0, lastRoomUpdate: 0, captureHolds: new Map()
+    roomBusy: false, locationReady: false, lastGpsAt: 0, lastRoomUpdate: 0, captureHolds: new Map(),
+    countdownTransitionKey: null
   };
 
   function toast(title, message, kind) {
@@ -551,8 +552,8 @@
       }
       state.room = snap.data();
       state.lastRoomUpdate = Date.now();
-      $('roomSubtitle').textContent = state.room.status === 'lobby' ? 'Poczekalnia • zaproś znajomych' : state.room.status === 'escape' ? 'Uciekający mają czas na ukrycie się' : state.room.status === 'running' ? 'Runda trwa — powodzenia!' : 'Rozgrywka zakończona';
-      $('gameStatus').textContent = ({ lobby: 'Poczekalnia', escape: 'Czas ucieczki', running: 'W trakcie gry', ended: 'Koniec rundy' })[state.room.status] || state.room.status;
+      $('roomSubtitle').textContent = state.room.status === 'lobby' ? 'Poczekalnia • zaproś znajomych' : state.room.status === 'countdown' ? 'Role wylosowane • przygotuj się' : state.room.status === 'escape' ? 'Uciekający mają czas na ukrycie się' : state.room.status === 'running' ? 'Runda trwa — powodzenia!' : 'Rozgrywka zakończona';
+      $('gameStatus').textContent = ({ lobby: 'Poczekalnia', countdown: 'Odliczanie', escape: 'Czas ucieczki', running: 'W trakcie gry', ended: 'Koniec rundy' })[state.room.status] || state.room.status;
       const isHost = state.room.hostUid === state.uid;
       $('hostControls').classList.toggle('hidden', !isHost || state.room.status !== 'lobby');
       updateStartButton();
@@ -645,7 +646,7 @@
     if (player.uid === state.uid || player.role === 'seeker') return true;
     if (player.alive === false) return true;
     if (player.outsideArea && state.me && state.me.role === 'seeker') return true;
-    if (state.room.status === 'lobby' || state.room.status === 'escape') return false;
+    if (state.room.status === 'lobby' || state.room.status === 'countdown' || state.room.status === 'escape') return false;
     if (state.room.status !== 'running') return true;
     const revealEvery = Math.max(10, Number(state.room.revealEverySeconds || 30));
     const revealFor = Math.max(3, Math.min(revealEvery, Number(state.room.revealDurationSeconds || 5)));
@@ -810,20 +811,28 @@
           alive: true
         });
       });
+      const countdownEndsAtMs = now + 3000;
+      const roleRevealEndsAtMs = now + 5400;
+      const escapeEndsAtMs = roleRevealEndsAtMs + escapeSeconds * 1000;
+      const roundEndsAtMs = escapeEndsAtMs + roundMinutes * 60 * 1000;
       batch.update(roomRef, {
-        status: 'escape',
+        status: 'countdown',
+        seekerUids: randomized.slice(0, seekerCount).map(function (player) { return player.uid; }),
+        countdownStartedAtMs: now,
+        countdownEndsAtMs: countdownEndsAtMs,
+        roleRevealEndsAtMs: roleRevealEndsAtMs,
         escapeSeconds: escapeSeconds,
         roundMinutes: roundMinutes,
         seekerCount: seekerCount,
-        startedAtMs: now,
-        escapeEndsAtMs: now + escapeSeconds * 1000,
-        roundEndsAtMs: now + (escapeSeconds + roundMinutes * 60) * 1000,
+        startedAtMs: escapeEndsAtMs,
+        escapeEndsAtMs: escapeEndsAtMs,
+        roundEndsAtMs: roundEndsAtMs,
         revealEverySeconds: revealEverySeconds,
         revealDurationSeconds: revealDurationSeconds,
         areaRadiusMeters: areaRadiusMeters,
         zoneShrinkEnabled: zoneShrinkEnabled,
         zoneFinalRadiusMeters: zoneFinalRadiusMeters,
-        zoneShrinkStartAtMs: now + escapeSeconds * 1000,
+        zoneShrinkStartAtMs: escapeEndsAtMs,
         zoneShrinkDurationSeconds: roundMinutes * 60,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
@@ -840,10 +849,93 @@
     }
   }
 
+  function syncStartSequence(now) {
+    const overlay = $('startSequenceOverlay');
+    if (!overlay) return;
+    if (!state.room || state.room.status !== 'countdown') {
+      overlay.classList.add('hidden');
+      overlay.classList.remove('is-visible', 'is-role-stage', 'is-seeker', 'is-runner');
+      overlay.setAttribute('aria-hidden', 'true');
+      overlay.dataset.stageKey = '';
+      return;
+    }
+
+    const countdownEndsAt = Number(state.room.countdownEndsAtMs) || (Number(state.room.countdownStartedAtMs) || now) + 3000;
+    const inCountdown = now < countdownEndsAt;
+    const me = state.players.find(function (player) { return player.uid === state.uid; }) || state.me;
+    const isSeeker = Array.isArray(state.room.seekerUids)
+      ? state.room.seekerUids.includes(state.uid)
+      : !!(me && me.role === 'seeker');
+    const count = Math.max(1, Math.ceil((countdownEndsAt - now) / 1000));
+    const stageKey = inCountdown ? 'count-' + count : 'role-' + (isSeeker ? 'seeker' : 'runner');
+
+    overlay.classList.remove('hidden');
+    overlay.classList.add('is-visible');
+    overlay.setAttribute('aria-hidden', 'false');
+    if (overlay.dataset.stageKey === stageKey) return;
+    overlay.dataset.stageKey = stageKey;
+
+    const kicker = $('startSequenceKicker');
+    const number = $('startSequenceNumber');
+    const title = $('startSequenceTitle');
+    const message = $('startSequenceMessage');
+    const symbol = $('startSequenceSymbol');
+
+    overlay.classList.toggle('is-role-stage', !inCountdown);
+    overlay.classList.toggle('is-seeker', !inCountdown && isSeeker);
+    overlay.classList.toggle('is-runner', !inCountdown && !isSeeker);
+
+    if (inCountdown) {
+      kicker.textContent = 'HUNTLY • START ZA CHWILĘ';
+      number.textContent = String(count);
+      title.textContent = 'Przygotuj się';
+      message.textContent = 'Role zostały wylosowane. Za moment ruszamy.';
+      symbol.textContent = 'H';
+      number.classList.remove('sequence-pop');
+      void number.offsetWidth;
+      number.classList.add('sequence-pop');
+      return;
+    }
+
+    number.textContent = '';
+    symbol.textContent = isSeeker ? '⌖' : '↗';
+    kicker.textContent = isSeeker ? 'TWOJA ROLA • SZUKAJĄCY' : 'TWOJA ROLA • UCIEKAJĄCY';
+    title.textContent = isSeeker
+      ? (Number(state.room.seekerCount) > 1 ? 'JESTEŚ W DRUŻYNIE SZUKAJĄCYCH!' : 'ZOSTAŁEŚ SZUKAJĄCYM!')
+      : 'JESTEŚ UCIEKAJĄCYM!';
+    message.textContent = isSeeker
+      ? 'Przygotuj się do pościgu. Czas ucieczki zaraz się rozpocznie.'
+      : 'UCIEKAJ!!! Znajdź kryjówkę, zanim szukający ruszą za Tobą.';
+  }
+
   function tickTimer() {
     if (!state.room) return;
     const now = Date.now();
-    if (state.room.status === 'escape') {
+    if (state.room.status !== 'countdown') state.countdownTransitionKey = null;
+
+    if (state.room.status === 'countdown') {
+      syncStartSequence(now);
+      const revealEndsAt = Number(state.room.roleRevealEndsAtMs) || ((Number(state.room.countdownEndsAtMs) || now) + 2400);
+      $('timer').textContent = formatTime(Math.max(0, Math.ceil((revealEndsAt - now) / 1000)));
+      $('statusHint').textContent = 'Odliczanie do rozpoczęcia ucieczki.';
+      const transitionKey = String(state.roomCode) + ':' + String(revealEndsAt);
+      if (now >= revealEndsAt && state.room.hostUid === state.uid && state.countdownTransitionKey !== transitionKey) {
+        state.countdownTransitionKey = transitionKey;
+        state.db.collection('rooms').doc(state.roomCode).update({
+          status: 'escape',
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(function (error) {
+          console.warn('Countdown transition:', error);
+          toast('Nie udało się przejść do fazy ucieczki', friendlyError(error), 'error');
+          setTimeout(function () {
+            if (state.room && state.room.status === 'countdown' && state.countdownTransitionKey === transitionKey) {
+              state.countdownTransitionKey = null;
+            }
+          }, 3000);
+        });
+      }
+    } else if (state.room.status === 'escape') {
+      syncStartSequence(now);
       const remaining = Math.max(0, Math.ceil(((state.room.escapeEndsAtMs || now) - now) / 1000));
       $('timer').textContent = formatTime(remaining);
       $('statusHint').textContent = 'Ukryj się, zanim skończy się czas.';
@@ -863,6 +955,7 @@
       if (remaining <= 0 && state.room.hostUid === state.uid) finishRoom('Czas się skończył.');
       renderMap();
     } else {
+      syncStartSequence(now);
       $('timer').textContent = state.room.status === 'ended' ? '00:00' : '--:--';
       $('statusHint').textContent = state.room.status === 'lobby' ? 'Czekamy na start.' : 'Rozgrywka zakończona.';
     }
