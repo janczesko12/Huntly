@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#101713">
+  <meta name="theme-color" content="#f4f2e9">
   <meta name="description" content="Huntly — terenowa gra w pościg i chowanego.">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.jpg?v=20261022-selected-image" type="image/jpeg" sizes="192x192">
   <link rel="apple-touch-icon" href="./icon.jpg?v=20261022-selected-image">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="./style.css?v=20261023-lobby-roles-zone">
-  <title>Huntly — outdoor chase</title>
+  <link rel="stylesheet" href="./style.css?v=20261024-scram-inspired-redesign">
+  <title>Huntly — Złap trop</title>
 </head>
 <body>
 
@@ -84,20 +84,20 @@
   <main class="shell">
     <section id="welcome" class="hero">
       <div class="hero-copy">
-        <div class="eyebrow"><span class="eyebrow-line"></span> REAL-WORLD MULTIPLAYER</div>
+        <div class="eyebrow"><span class="eyebrow-line"></span> CHOWANY • POŚCIG • GPS</div>
         <h1>Miasto jest<br><em>planszą.</em></h1>
-        <p class="hero-description">Jeden tropi. Reszta ucieka. Twoja lokalizacja, twoje ruchy, twoja strategia.</p>
-        <div class="feature-pills"><span>⌖ GPS LIVE</span><span>◉ OPEN MAPS</span><span>↗ MULTIPLAYER</span></div>
+        <p class="hero-description">Zbierz ekipę, wybierz arenę i ruszaj w teren. Twoje miasto staje się planszą.</p>
+        <div class="feature-pills"><span>⌖ GPS NA ŻYWO</span><span>◉ MAPA OSM</span><span>↗ GRA ZE ZNAJOMYMI</span></div>
       </div>
       <div class="radar-wrap" aria-hidden="true"><div class="radar-ring ring-a"></div><div class="radar-ring ring-b"></div><div class="radar-ring ring-c"></div><div class="radar-sweep"></div><span class="radar-center"></span><span class="radar-dot dot-a"></span><span class="radar-dot dot-b"></span><span class="radar-dot dot-c"></span><span class="radar-label">SCANNING AREA</span></div>
       <div class="panel-grid">
         <section class="panel panel-primary">
-          <div class="panel-kicker">01 / START GAME</div><h2>Stwórz pokój</h2><p>Załóż rozgrywkę i zaproś ekipę kodem.</p>
+          <div class="panel-kicker">01 / NOWA ROZGRYWKA</div><h2>Stwórz pokój</h2><p>Załóż rozgrywkę i zaproś ekipę kodem.</p>
           <label for="createName">Twój pseudonim</label><input id="createName" maxlength="18" placeholder="np. Shadow" autocomplete="nickname">
           <button id="createBtn" class="button button-primary"><span>Utwórz pokój</span><span class="button-arrow">↗</span></button>
         </section>
         <section class="panel">
-          <div class="panel-kicker">02 / JOIN GAME</div><h2>Dołącz do gry</h2><p>Masz kod od znajomego? Wskakuj do akcji.</p>
+          <div class="panel-kicker">02 / DOŁĄCZ DO EKIPY</div><h2>Dołącz do gry</h2><p>Masz kod od znajomego? Wskakuj do akcji.</p>
           <label for="joinName">Twój pseudonim</label><input id="joinName" maxlength="18" placeholder="np. Runner" autocomplete="nickname">
           <label for="roomCode">Kod pokoju</label><input id="roomCode" class="code-input" maxlength="6" inputmode="numeric" placeholder="000000" autocomplete="off">
           <button id="joinBtn" class="button button-secondary"><span>Dołącz do pokoju</span><span class="button-arrow">→</span></button>
@@ -108,15 +108,15 @@
       </section>
     </section>
     <section id="game" class="game-view hidden">
-      <div class="game-heading"><div><div class="eyebrow"><span class="eyebrow-line"></span> LIVE SESSION</div><h1 id="roomTitle">Pokój <em>------</em></h1><p id="roomSubtitle">Oczekiwanie na graczy</p></div><div class="role-badge" id="roleBadge">RUNNER</div></div>
+      <div class="game-heading"><div><div class="eyebrow"><span class="eyebrow-line"></span> AKTYWNA ROZGRYWKA</div><h1 id="roomTitle">Pokój <em>------</em></h1><p id="roomSubtitle">Oczekiwanie na graczy</p></div><div class="role-badge" id="roleBadge">RUNNER</div></div>
       <div class="game-toolbar">
-        <div class="room-code-block"><span>KOD POKOJU</span><strong id="roomCodeDisplay">------</strong></div>
+        <div class="room-code-block"><span>KOD DOŁĄCZENIA</span><strong id="roomCodeDisplay">------</strong></div>
         <button id="copyCodeBtn" class="icon-button" aria-label="Kopiuj kod">⧉</button>
         <div class="toolbar-spacer"></div><span id="playerCount" class="players-count">0 graczy</span>
         <button id="leaveBtn" class="button button-danger button-small">Opuść</button>
       </div>
       <div class="game-layout">
-        <div class="map-card"><div class="map-topline"><span><span class="live-dot"></span> MAPA NA ŻYWO</span><span id="mapUpdated">Czekam na GPS</span></div><div id="map"></div><div class="map-legend"><span><i class="legend-seeker"></i> Szukający</span><span><i class="legend-runner"></i> Uciekający</span><span><i class="legend-you"></i> Ty</span></div></div>
+        <div class="map-card"><div class="map-topline"><span><span class="live-dot"></span> MAPA ROZGRYWKI</span><span id="mapUpdated">Czekam na GPS</span></div><div id="map"></div><div class="map-legend"><span><i class="legend-seeker"></i> Szukający</span><span><i class="legend-runner"></i> Uciekający</span><span><i class="legend-you"></i> Ty</span></div></div>
         <aside class="side-panel">
           <div class="status-card"><span class="card-label">STATUS ROZGRYWKI</span><strong id="gameStatus">Lobby</strong><div id="timer" class="timer">--:--</div><span id="statusHint" class="muted">Czekamy na start</span></div>
           <div class="roster-card"><div class="roster-heading"><div><span class="card-label">W DRUŻYNIE</span><h3>Gracze <span id="rosterCount">0</span></h3></div><span class="roster-symbol">◉</span></div><div id="playersList" class="players-list"></div></div>
@@ -134,7 +134,7 @@
   </main>
   <div id="toastRegion" class="toast-region" aria-live="polite"></div>
   <div id="busy" class="busy hidden"><div class="spinner"></div><strong id="busyText">Łączenie z Huntly…</strong><span>Chwilka, szykujemy rozgrywkę.</span></div>
-  <footer><span>HUNTLY © 2026</span><span>PLAY FAIR. MOVE SMART.</span><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a></footer>
+  <footer><span>HUNTLY • GRAJ W TERENIE</span><span>PLAY FAIR. MOVE SMART.</span><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a></footer>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
