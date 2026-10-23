@@ -1,9 +1,10 @@
 'use strict';
 
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
-const { validateCapture } = require('./domain');
+const { validateCapture, shouldDeleteInactiveLobby } = require('./domain');
 
 initializeApp();
 const db = getFirestore();
@@ -74,5 +75,60 @@ exports.captureRunner = onCall({ region: 'europe-west1' }, async request => {
     if (error instanceof HttpsError) throw error;
     console.error('captureRunner failed', error);
     throw new HttpsError('internal', 'Nie udało się zweryfikować złapania. Spróbuj ponownie.');
+  }
+});
+
+
+exports.cleanupInactiveLobbies = onSchedule({
+  schedule: 'every 1 minutes',
+  timeZone: 'Europe/Warsaw',
+  region: 'europe-west1',
+  timeoutSeconds: 300,
+  memory: '256MiB',
+  maxInstances: 1,
+  retryCount: 0
+}, async () => {
+  const snapshot = await db.collection('rooms')
+    .where('status', 'in', ['lobby', 'expired'])
+    .get();
+  let deleted = 0;
+  let failed = 0;
+
+  for (const candidate of snapshot.docs) {
+    let shouldDelete = false;
+    try {
+      await db.runTransaction(async transaction => {
+        shouldDelete = false;
+        const liveSnapshot = await transaction.get(candidate.ref);
+        if (!liveSnapshot.exists) return;
+        const room = liveSnapshot.data();
+
+        // Retry recursive cleanup if an earlier scheduler run claimed the room
+        // but did not finish deleting its subcollections.
+        if (room.status === 'expired') {
+          shouldDelete = true;
+          return;
+        }
+        if (!shouldDeleteInactiveLobby(room, Date.now())) return;
+
+        transaction.update(candidate.ref, {
+          status: 'expired',
+          cleanupStartedAt: FieldValue.serverTimestamp()
+        });
+        shouldDelete = true;
+      });
+
+      if (shouldDelete) {
+        await db.recursiveDelete(candidate.ref);
+        deleted += 1;
+      }
+    } catch (error) {
+      failed += 1;
+      console.error('Lobby cleanup failed', candidate.id, error && error.message ? error.message : 'unknown');
+    }
+  }
+
+  if (deleted || failed) {
+    console.log('Inactive lobby cleanup:', JSON.stringify({ scanned: snapshot.size, deleted, failed }));
   }
 });
