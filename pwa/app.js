@@ -533,6 +533,81 @@
     }
   }
 
+  function syncPlayerCounts() {
+    const count = Array.isArray(state.players) ? state.players.length : 0;
+    const playerCount = $('playerCount');
+    const rosterCount = $('rosterCount');
+    if (playerCount) playerCount.textContent = count + (count === 1 ? ' gracz' : ' graczy');
+    if (rosterCount) rosterCount.textContent = String(count);
+  }
+
+  function updateRoleBadge() {
+    const badge = $('roleBadge');
+    if (!badge) return;
+    if (!state.room || state.room.status === 'lobby') badge.textContent = 'ROLA LOSOWANA';
+    else if (state.room.status === 'countdown') badge.textContent = 'LOSOWANIE RÓL';
+    else {
+      const me = state.players.find(function (player) { return player.uid === state.uid; }) || state.me;
+      badge.textContent = me && me.role === 'seeker' ? 'SZUKAJĄCY' : 'UCIEKAJĄCY';
+    }
+  }
+
+  function canEditArena() {
+    return !!(state.room && state.room.status === 'lobby' && state.room.hostUid === state.uid && state.roomCode);
+  }
+
+  function updateArenaControls() {
+    const controls = $('arenaControls');
+    const notice = $('arenaReadOnly');
+    const noticeText = $('arenaReadOnlyText');
+    const canEdit = canEditArena();
+    if (controls) controls.classList.toggle('hidden', !canEdit);
+    if (notice) notice.classList.toggle('hidden', !(state.room && state.room.status === 'lobby' && !canEdit));
+    if (noticeText && state.room) {
+      noticeText.textContent = state.room.status === 'lobby'
+        ? 'Tylko host może ustawić arenę. Poproś go, aby dotknął mapy na swoim telefonie.'
+        : 'Arenę można zmienić tylko w poczekalni.';
+    }
+    const center = $('arenaCenterLabel');
+    if (center) {
+      center.textContent = state.room && typeof state.room.areaCenterLat === 'number' && typeof state.room.areaCenterLng === 'number'
+        ? 'Środek areny zapisany • promień ' + Math.round(Number(state.room.areaRadiusMeters) || 500) + ' m'
+        : 'Środek areny nie został ustawiony';
+    }
+  }
+
+  async function saveArenaCenter(lat, lng) {
+    if (!canEditArena()) {
+      toast('Arenę ustawia host', 'Środek areny można zmienić wyłącznie w poczekalni hosta.', 'error');
+      return false;
+    }
+    lat = Number(lat);
+    lng = Number(lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      toast('Nieprawidłowa lokalizacja', 'Wybierz punkt na mapie albo spróbuj ponownie odczytać GPS.', 'error');
+      return false;
+    }
+    try {
+      const centerLat = Number(lat.toFixed(6));
+      const centerLng = Number(lng.toFixed(6));
+      await state.db.collection('rooms').doc(state.roomCode).update({
+        areaCenterLat: centerLat,
+        areaCenterLng: centerLng,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      state.room.areaCenterLat = centerLat;
+      state.room.areaCenterLng = centerLng;
+      updateArenaControls();
+      if (state.map) state.map.setView([centerLat, centerLng], Math.max(15, state.map.getZoom()), { animate: true });
+      renderMap();
+      toast('Arena ustawiona', 'Środek areny został zapisany dla wszystkich graczy.', 'success');
+      return true;
+    } catch (error) {
+      toast('Nie udało się zapisać areny', friendlyError(error), 'error');
+      return false;
+    }
+  }
+
   function openRoom(code) {
     closeRoomListeners();
     state.roomCode = code;
@@ -540,7 +615,7 @@
     showGame();
     $('roomCodeDisplay').textContent = code;
     $('roomTitle').innerHTML = 'Pokój <em>' + code + '</em>';
-    $('roleBadge').textContent = state.me && state.me.role === 'seeker' ? 'SZUKAJĄCY' : 'UCIEKAJĄCY';
+    $('roleBadge').textContent = 'ROLA LOSOWANA';
     $('hostControls').classList.toggle('hidden', !(state.me && state.me.uid === state.uid && state.me.role === 'seeker'));
     $('gameActions').classList.remove('hidden');
     initMap();
@@ -552,6 +627,10 @@
       }
       state.room = snap.data();
       state.lastRoomUpdate = Date.now();
+      updateRoleBadge();
+      updateArenaControls();
+      renderPlayers();
+      syncPlayerCounts();
       $('roomSubtitle').textContent = state.room.status === 'lobby' ? 'Poczekalnia • zaproś znajomych' : state.room.status === 'countdown' ? 'Role wylosowane • przygotuj się' : state.room.status === 'escape' ? 'Uciekający mają czas na ukrycie się' : state.room.status === 'running' ? 'Runda trwa — powodzenia!' : 'Rozgrywka zakończona';
       $('gameStatus').textContent = ({ lobby: 'Poczekalnia', countdown: 'Odliczanie', escape: 'Czas ucieczki', running: 'W trakcie gry', ended: 'Koniec rundy' })[state.room.status] || state.room.status;
       const isHost = state.room.hostUid === state.uid;
@@ -570,18 +649,16 @@
     state.playersUnsub = ref.collection('players').onSnapshot(function (snap) {
       state.players = snap.docs.map(function (doc) { const d = doc.data(); d.uid = doc.id; return d; });
       state.me = state.players.find(function (player) { return player.uid === state.uid; }) || state.me;
-      if (state.me) {
-        sessionStore();
-        $('roleBadge').textContent = state.me.role === 'seeker' ? 'SZUKAJĄCY' : 'UCIEKAJĄCY';
-      }
+      if (state.me) sessionStore();
+      updateRoleBadge();
+      updateArenaControls();
       state.captureHolds.forEach(function (_, uid) {
         const target = state.players.find(function (p) { return p.uid === uid; });
         if (!target || target.role !== 'runner' || target.alive === false || !state.me || state.me.role !== 'seeker') cancelCaptureHold(uid);
       });
       if (state.captureHolds.size === 0) renderPlayers();
       renderMap();
-      $('playerCount').textContent = state.players.length + (state.players.length === 1 ? ' gracz' : ' graczy');
-      $('rosterCount').textContent = String(state.players.length);
+      syncPlayerCounts();
       updateStartButton();
       const runners = state.players.filter(function (p) { return p.role === 'runner' && p.alive !== false; }).length;
       if (state.room && state.room.status === 'running' && runners === 0) finishRoom('Szukający wygrywa — wszyscy uciekający zostali złapani.');
@@ -591,9 +668,14 @@
     state.refreshTimer = setInterval(function () {
       ref.get().then(function (snap) {
         if (snap.exists) state.room = snap.data();
+        updateRoleBadge();
+        updateArenaControls();
         return ref.collection('players').get();
       }).then(function (snap) {
         state.players = snap.docs.map(function (doc) { const d = doc.data(); d.uid = doc.id; return d; });
+        state.me = state.players.find(function (player) { return player.uid === state.uid; }) || state.me;
+        syncPlayerCounts();
+        updateStartButton();
         renderPlayers(); renderMap(); tickTimer();
       }).catch(function (error) { console.warn('Room refresh:', error); });
     }, ROOM_REFRESH_MS);
@@ -623,26 +705,22 @@
     }).addTo(state.map);
     L.control.zoom({ position: 'bottomright' }).addTo(state.map);
     state.map.on('click', function (event) {
-      if (!state.room || state.room.status !== 'lobby' || state.room.hostUid !== state.uid || !state.roomCode) return;
-      const lat = Number(event.latlng.lat.toFixed(6));
-      const lng = Number(event.latlng.lng.toFixed(6));
-      state.room.areaCenterLat = lat;
-      state.room.areaCenterLng = lng;
-      renderMap();
-      state.db.collection('rooms').doc(state.roomCode).update({
-        areaCenterLat: lat,
-        areaCenterLng: lng,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }).then(function () {
-        toast('Ustawiono arenę', 'Środek obszaru gry zapisany w wybranym punkcie mapy.', 'success');
-      }).catch(function (error) {
-        toast('Nie udało się zapisać areny', friendlyError(error), 'error');
-      });
+      if (!state.room || !state.roomCode) return;
+      if (state.room.status !== 'lobby') {
+        toast('Arena zablokowana', 'Środek areny można zmienić tylko w poczekalni.', 'error');
+        return;
+      }
+      if (state.room.hostUid !== state.uid) {
+        toast('Arenę ustawia host', 'Poproś hosta, aby wskazał punkt na mapie na swoim telefonie.', 'error');
+        return;
+      }
+      saveArenaCenter(event.latlng.lat, event.latlng.lng);
     });
     setTimeout(function () { state.map.invalidateSize(); }, 250);
   }
   function locationVisible(player) {
     if (!state.room) return false;
+    if (state.room.status === 'lobby' || state.room.status === 'countdown') return player.uid === state.uid;
     if (player.uid === state.uid || player.role === 'seeker') return true;
     if (player.alive === false) return true;
     if (player.outsideArea && state.me && state.me.role === 'seeker') return true;
@@ -699,26 +777,30 @@
 
   function renderPlayers() {
     const list = $('playersList');
+    if (!list) return;
+    syncPlayerCounts();
     list.innerHTML = '';
+    const rolePending = !state.room || state.room.status === 'lobby';
+    const roleReveal = !!(state.room && state.room.status === 'countdown');
     const players = state.players.slice().sort(function (a, b) {
       if (a.uid === state.uid) return -1;
       if (b.uid === state.uid) return 1;
-      if (a.role === 'seeker') return -1;
-      if (b.role === 'seeker') return 1;
+      if (!rolePending && a.role === 'seeker') return -1;
+      if (!rolePending && b.role === 'seeker') return 1;
       return String(a.name || '').localeCompare(String(b.name || ''));
     });
     players.forEach(function (player) {
       const row = document.createElement('div');
       row.className = 'player-row' + (player.alive === false ? ' player-caught' : '');
       const icon = document.createElement('div');
-      icon.className = 'player-avatar ' + (player.role === 'seeker' ? 'avatar-seeker' : 'avatar-runner');
-      icon.textContent = player.role === 'seeker' ? '⌖' : '↗';
+      icon.className = 'player-avatar ' + (rolePending || roleReveal ? 'avatar-pending' : (player.role === 'seeker' ? 'avatar-seeker' : 'avatar-runner'));
+      icon.textContent = rolePending ? '?' : (roleReveal ? '…' : (player.role === 'seeker' ? '⌖' : '↗'));
       const info = document.createElement('div');
       info.className = 'player-info';
       const name = document.createElement('strong');
       name.textContent = (player.name || 'Gracz') + (player.uid === state.uid ? ' (Ty)' : '');
       const role = document.createElement('span');
-      role.textContent = player.role === 'seeker' ? 'Szukający' : (player.alive === false ? 'Złapany' : (player.outsideArea && state.me && state.me.role === 'seeker' ? 'Poza obszarem • GPS na żywo' : 'Uciekający'));
+      role.textContent = rolePending ? 'Rola losowana przy starcie' : (roleReveal ? 'Rola wylosowana' : (player.alive === false ? 'Złapany' : (player.outsideArea && state.me && state.me.role === 'seeker' ? 'Poza obszarem • GPS na żywo' : (player.role === 'seeker' ? 'Szukający' : 'Uciekający'))));
       info.appendChild(name); info.appendChild(role);
       row.appendChild(icon); row.appendChild(info);
       if (state.me && state.me.role === 'seeker' && player.role === 'runner' && player.alive !== false && state.room && state.room.status === 'running') {
@@ -1114,6 +1196,26 @@
       ensureLocation().then(function () { toast('GPS gotowy', 'Lokalizacja została uzyskana.', 'success'); }).catch(function (error) { toast('Lokalizacja wymagana', error.message, 'error'); });
     });
     $('startBtn').addEventListener('click', startGame);
+    $('arenaAtMeBtn').addEventListener('click', async function () {
+      if (!canEditArena()) {
+        toast('Arenę ustawia host', 'Otwórz poczekalnię na telefonie hosta, aby zmienić środek areny.', 'error');
+        return;
+      }
+      const button = this;
+      const oldText = button.textContent;
+      button.disabled = true;
+      button.textContent = 'Pobieram GPS…';
+      try {
+        await ensureLocation();
+        if (!state.gps) throw new Error('Nie udało się odczytać GPS.');
+        await saveArenaCenter(state.gps.lat, state.gps.lng);
+      } catch (error) {
+        toast('Nie udało się ustawić areny', error.message || friendlyError(error), 'error');
+      } finally {
+        button.disabled = false;
+        button.textContent = oldText;
+      }
+    });
     $('areaRadiusMeters').addEventListener('change', function () {
       if (state.room && state.room.hostUid === state.uid && state.room.status === 'lobby') {
         const radius = Math.max(50, Number(this.value) || 500);
