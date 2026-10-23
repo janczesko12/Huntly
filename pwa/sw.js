@@ -1,4 +1,4 @@
-const CACHE_NAME = 'huntly-pwa-v19-shared-start-countdown';
+const CACHE_NAME = 'huntly-pwa-v20-lobby-count-arena-fix';
 const APP_SHELL_PATHS = ['./', './index.html', './style.css', './config.js', './app.js', './manifest.webmanifest', './icon.svg', './icon.jpg'];
 const scopedUrl = function (path) { return new URL(path, self.registration.scope).href; };
 const APP_SHELL = APP_SHELL_PATHS.map(scopedUrl);
