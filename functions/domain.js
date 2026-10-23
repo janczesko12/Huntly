@@ -3,6 +3,7 @@
 const CAPTURE_RADIUS_METERS = 5;
 const CAPTURE_GPS_FRESH_MS = 15000;
 const CAPTURE_MAX_ACCURACY_METERS = 10;
+const LOBBY_INACTIVITY_MS = 15 * 60 * 1000;
 
 function timestampMillis(value) {
   if (!value) return 0;
@@ -13,6 +14,15 @@ function timestampMillis(value) {
   }
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function shouldDeleteInactiveLobby(room, now = Date.now(), inactivityMs = LOBBY_INACTIVITY_MS) {
+  if (!room || room.status !== 'lobby') return false;
+  const lastActivity = timestampMillis(room.lastActivityAt)
+    || timestampMillis(room.updatedAt)
+    || timestampMillis(room.createdAt);
+  if (!lastActivity || !Number.isFinite(now) || !Number.isFinite(inactivityMs) || inactivityMs < 0) return false;
+  return now - lastActivity >= inactivityMs;
 }
 
 function distanceMeters(a, b) {
@@ -62,7 +72,9 @@ module.exports = {
   CAPTURE_RADIUS_METERS,
   CAPTURE_GPS_FRESH_MS,
   CAPTURE_MAX_ACCURACY_METERS,
+  LOBBY_INACTIVITY_MS,
   timestampMillis,
+  shouldDeleteInactiveLobby,
   distanceMeters,
   validateCapture
 };
