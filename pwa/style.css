@@ -379,3 +379,12 @@ footer { max-width: 1240px; display: flex; justify-content: space-between; gap: 
 .ios-guide-symbol { width: 31px; height: 31px; }
 .ios-guide-steps { gap: 22px; }
 .ios-install-guide { background: radial-gradient(ellipse at 12% 0%, #24391f 0, transparent 42%), radial-gradient(ellipse at 55% 46%, #1c3421 0, transparent 42%), #0b100d; }
+
+
+/* Huntly lobby role lottery + shrinking zone settings */
+.role-draw-help { margin-top: -5px; line-height: 1.55; }
+.host-controls label { display: block; margin-top: 15px; }
+.host-controls label:first-of-type { margin-top: 12px; }
+@media (max-width: 700px) {
+  .role-draw-help, .area-help { font-size: 10px; }
+}

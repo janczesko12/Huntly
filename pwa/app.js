@@ -65,6 +65,26 @@
     $('welcome').classList.add('hidden');
     $('game').classList.remove('hidden');
   }
+  function updateStartButton() {
+    const hostCanStart = !!(state.room && state.room.hostUid === state.uid && state.room.status === 'lobby');
+    const seekers = Math.max(1, Number($('seekerCount') && $('seekerCount').value) || 1);
+    $('startBtn').disabled = !hostCanStart || state.players.length < seekers + 1;
+  }
+  function shufflePlayers(players) {
+    const result = players.slice();
+    for (let i = result.length - 1; i > 0; i--) {
+      const bytes = new Uint32Array(1);
+      if (window.crypto && window.crypto.getRandomValues) {
+        window.crypto.getRandomValues(bytes);
+        const j = bytes[0] % (i + 1);
+        const temp = result[i]; result[i] = result[j]; result[j] = temp;
+      } else {
+        const j = Math.floor(Math.random() * (i + 1));
+        const temp = result[i]; result[i] = result[j]; result[j] = temp;
+      }
+    }
+    return result;
+  }
   function setConnection(text, online) {
     $('connectionText').textContent = text;
     const dot = document.querySelector('.connection .pulse');
@@ -281,9 +301,21 @@
     });
   }
 
+  function currentZoneRadius(room, now) {
+    if (!room) return 500;
+    const initial = Math.max(50, Number(room.areaRadiusMeters) || 500);
+    if (room.status !== 'running' || !room.zoneShrinkEnabled) return initial;
+    const desiredFinal = Math.max(50, Number(room.zoneFinalRadiusMeters) || 100);
+    const finalRadius = Math.min(desiredFinal, Math.max(50, initial * 0.75));
+    const startedAt = Number(room.zoneShrinkStartAtMs) || Number(room.startedAtMs) || now || Date.now();
+    const durationMs = Math.max(1, Number(room.zoneShrinkDurationSeconds) || (Number(room.roundMinutes) || 20) * 60) * 1000;
+    const progress = Math.max(0, Math.min(1, ((now || Date.now()) - startedAt) / durationMs));
+    return initial + (finalRadius - initial) * progress;
+  }
+
   function isOutsidePlayArea(position, room) {
     if (!room || typeof room.areaCenterLat !== 'number' || typeof room.areaCenterLng !== 'number') return false;
-    const radius = Math.max(50, Number(room.areaRadiusMeters) || 500);
+    const radius = currentZoneRadius(room, Date.now());
     return distanceMeters(position, { lat: room.areaCenterLat, lng: room.areaCenterLng }) > radius;
   }
 
@@ -349,6 +381,9 @@
         areaCenterLat: state.gps.lat,
         areaCenterLng: state.gps.lng,
         areaRadiusMeters: 500,
+        seekerCount: 1,
+        zoneShrinkEnabled: false,
+        zoneFinalRadiusMeters: 100,
         startedAt: null,
         escapeEndsAt: null,
         endedAt: null
@@ -381,7 +416,7 @@
       const roomSnap = await ref.get();
       if (!roomSnap.exists) throw new Error('Nie znaleziono pokoju o kodzie ' + code + '.');
       const room = roomSnap.data();
-      if (room.status === 'ended') throw new Error('Ta rozgrywka jest już zakończona.');
+      if (room.status !== 'lobby') throw new Error('Do pokoju można dołączyć tylko przed startem gry. Poproś hosta o nowy kod, jeśli runda już trwa.');
       const name = normalizeName($('joinName').value);
       busy(true, 'Dołączam do pokoju…');
       const playerRef = ref.collection('players').doc(state.uid);
@@ -462,11 +497,15 @@
       $('gameStatus').textContent = ({ lobby: 'Poczekalnia', escape: 'Czas ucieczki', running: 'W trakcie gry', ended: 'Koniec rundy' })[state.room.status] || state.room.status;
       const isHost = state.room.hostUid === state.uid;
       $('hostControls').classList.toggle('hidden', !isHost || state.room.status !== 'lobby');
-      $('startBtn').disabled = !isHost || state.players.length < 2;
+      updateStartButton();
       $('gameActions').classList.toggle('hidden', state.room.status === 'lobby' || state.room.status === 'ended');
       $('escapeSeconds').value = String(state.room.escapeSeconds || 30);
       $('roundMinutes').value = String(state.room.roundMinutes || 20);
       $('areaRadiusMeters').value = String(state.room.areaRadiusMeters || 500);
+      $('seekerCount').value = String(state.room.seekerCount || $('seekerCount').value || 1);
+      $('zoneShrinkEnabled').value = state.room.zoneShrinkEnabled ? 'on' : 'off';
+      $('zoneFinalRadiusMeters').value = String(state.room.zoneFinalRadiusMeters || 100);
+      updateStartButton();
       tickTimer();
     }, function (error) { toast('Błąd synchronizacji pokoju', friendlyError(error), 'error'); });
     state.playersUnsub = ref.collection('players').onSnapshot(function (snap) {
@@ -484,7 +523,7 @@
       renderMap();
       $('playerCount').textContent = state.players.length + (state.players.length === 1 ? ' gracz' : ' graczy');
       $('rosterCount').textContent = String(state.players.length);
-      if (state.room && state.room.hostUid === state.uid && state.room.status === 'lobby') $('startBtn').disabled = state.players.length < 2;
+      updateStartButton();
       const runners = state.players.filter(function (p) { return p.role === 'runner' && p.alive !== false; }).length;
       if (state.room && state.room.status === 'running' && runners === 0) finishRoom('Szukający wygrywa — wszyscy uciekający zostali złapani.');
     }, function (error) { toast('Nie udało się pobrać graczy', friendlyError(error), 'error'); });
@@ -524,6 +563,23 @@
       maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(state.map);
     L.control.zoom({ position: 'bottomright' }).addTo(state.map);
+    state.map.on('click', function (event) {
+      if (!state.room || state.room.status !== 'lobby' || state.room.hostUid !== state.uid || !state.roomCode) return;
+      const lat = Number(event.latlng.lat.toFixed(6));
+      const lng = Number(event.latlng.lng.toFixed(6));
+      state.room.areaCenterLat = lat;
+      state.room.areaCenterLng = lng;
+      renderMap();
+      state.db.collection('rooms').doc(state.roomCode).update({
+        areaCenterLat: lat,
+        areaCenterLng: lng,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(function () {
+        toast('Ustawiono arenę', 'Środek obszaru gry zapisany w wybranym punkcie mapy.', 'success');
+      }).catch(function (error) {
+        toast('Nie udało się zapisać areny', friendlyError(error), 'error');
+      });
+    });
     setTimeout(function () { state.map.invalidateSize(); }, 250);
   }
   function locationVisible(player) {
@@ -550,7 +606,7 @@
     if (!state.map) return;
     if (state.room && typeof state.room.areaCenterLat === 'number' && typeof state.room.areaCenterLng === 'number') {
       const center = [state.room.areaCenterLat, state.room.areaCenterLng];
-      const radius = Math.max(50, Number(state.room.areaRadiusMeters) || 500);
+      const radius = currentZoneRadius(state.room, Date.now());
       if (!state.areaCircle) state.areaCircle = L.circle(center, { radius: radius, color: '#c7f36b', weight: 2, opacity: 0.9, fillColor: '#c7f36b', fillOpacity: 0.07 }).addTo(state.map);
       else state.areaCircle.setLatLng(center).setRadius(radius);
     }
@@ -652,26 +708,78 @@
   }
 
   async function startGame() {
-    if (!state.room || state.room.hostUid !== state.uid) return;
-    if (state.players.length < 2) { toast('Za mało graczy', 'Do rozpoczęcia potrzebujesz co najmniej dwóch osób.', 'error'); return; }
+    if (!state.room || state.room.hostUid !== state.uid || state.room.status !== 'lobby') return;
     try {
       await ensureLocation();
+      const roomRef = state.db.collection('rooms').doc(state.roomCode);
+      const liveSnap = await roomRef.collection('players').get();
+      const roster = liveSnap.docs.map(function (doc) {
+        const data = doc.data();
+        data.uid = doc.id;
+        return data;
+      });
+      if (roster.length < 2) {
+        toast('Za mało graczy', 'Do rozpoczęcia potrzebujesz co najmniej dwóch osób.', 'error');
+        return;
+      }
+      if (roster.length > 450) {
+        toast('Za dużo graczy', 'Pokój przekroczył limit bezpiecznego losowania. Zmniejsz liczbę graczy.', 'error');
+        return;
+      }
+      const seekerCount = Math.max(1, Number($('seekerCount').value) || 1);
+      if (seekerCount >= roster.length) {
+        toast('Za dużo szukających', 'Musi zostać co najmniej jedna osoba chowająca się. Zmień liczbę szukających.', 'error');
+        return;
+      }
       const escapeSeconds = Number($('escapeSeconds').value) || 30;
       const roundMinutes = Number($('roundMinutes').value) || 20;
       const revealEverySeconds = Number($('revealEverySeconds').value) || 30;
       const revealDurationSeconds = Number($('revealDurationSeconds').value) || 5;
-      const areaRadiusMeters = Number($('areaRadiusMeters').value) || 500;
+      const areaRadiusMeters = Math.max(50, Number($('areaRadiusMeters').value) || 500);
+      const zoneShrinkEnabled = $('zoneShrinkEnabled').value === 'on';
+      const desiredFinalRadius = Math.max(50, Number($('zoneFinalRadiusMeters').value) || 100);
+      const zoneFinalRadiusMeters = Math.min(desiredFinalRadius, Math.max(50, areaRadiusMeters * 0.75));
       const now = Date.now();
-      await state.db.collection('rooms').doc(state.roomCode).update({
-        status: 'escape', escapeSeconds: escapeSeconds, roundMinutes: roundMinutes,
-        startedAtMs: now, escapeEndsAtMs: now + escapeSeconds * 1000,
+      const randomized = shufflePlayers(roster);
+      const roleByUid = new Map();
+      randomized.forEach(function (player, index) {
+        roleByUid.set(player.uid, index < seekerCount ? 'seeker' : 'runner');
+      });
+      const batch = state.db.batch();
+      roster.forEach(function (player) {
+        batch.update(roomRef.collection('players').doc(player.uid), {
+          role: roleByUid.get(player.uid),
+          alive: true
+        });
+      });
+      batch.update(roomRef, {
+        status: 'escape',
+        escapeSeconds: escapeSeconds,
+        roundMinutes: roundMinutes,
+        seekerCount: seekerCount,
+        startedAtMs: now,
+        escapeEndsAtMs: now + escapeSeconds * 1000,
         roundEndsAtMs: now + (escapeSeconds + roundMinutes * 60) * 1000,
-        revealEverySeconds: revealEverySeconds, revealDurationSeconds: revealDurationSeconds,
+        revealEverySeconds: revealEverySeconds,
+        revealDurationSeconds: revealDurationSeconds,
         areaRadiusMeters: areaRadiusMeters,
+        zoneShrinkEnabled: zoneShrinkEnabled,
+        zoneFinalRadiusMeters: zoneFinalRadiusMeters,
+        zoneShrinkStartAtMs: now + escapeSeconds * 1000,
+        zoneShrinkDurationSeconds: roundMinutes * 60,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-      toast('Gra wystartowała', 'Uciekający mają ' + escapeSeconds + ' s na ukrycie się.', 'success');
-    } catch (error) { toast('Nie udało się rozpocząć gry', friendlyError(error), 'error'); }
+      await batch.commit();
+      state.players = roster.map(function (player) {
+        return Object.assign({}, player, { role: roleByUid.get(player.uid), alive: true });
+      });
+      state.me = state.players.find(function (player) { return player.uid === state.uid; }) || state.me;
+      renderPlayers();
+      renderMap();
+      toast('Role wylosowane', 'Szukających: ' + seekerCount + ' • Chowających: ' + (roster.length - seekerCount) + '. Start za chwilę!', 'success');
+    } catch (error) {
+      toast('Nie udało się rozpocząć gry', friendlyError(error), 'error');
+    }
   }
 
   function tickTimer() {
@@ -691,7 +799,9 @@
       const every = Math.max(5, Number(state.room.revealEverySeconds) || 30);
       const duration = Math.min(every, Math.max(1, Number(state.room.revealDurationSeconds) || 5));
       const reveal = state.room.status === 'running' && elapsed % every < duration;
-      $('statusHint').textContent = reveal ? '⚠ Sygnał GPS — pozycje ujawnione!' : 'Pozycje uciekających są ukryte.';
+      let hint = reveal ? '⚠ Sygnał GPS — pozycje ujawnione!' : 'Pozycje uciekających są ukryte.';
+      if (state.room.zoneShrinkEnabled) hint += ' • Strefa: ' + Math.round(currentZoneRadius(state.room, now)) + ' m';
+      $('statusHint').textContent = hint;
       if (remaining <= 0 && state.room.hostUid === state.uid) finishRoom('Czas się skończył.');
       renderMap();
     } else {
@@ -855,10 +965,18 @@
     $('startBtn').addEventListener('click', startGame);
     $('areaRadiusMeters').addEventListener('change', function () {
       if (state.room && state.room.hostUid === state.uid && state.room.status === 'lobby') {
-        state.room.areaRadiusMeters = Number(this.value) || 500;
+        const radius = Math.max(50, Number(this.value) || 500);
+        state.room.areaRadiusMeters = radius;
         renderMap();
+        state.db.collection('rooms').doc(state.roomCode).update({
+          areaRadiusMeters: radius,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(function (error) {
+          toast('Nie udało się zapisać promienia', friendlyError(error), 'error');
+        });
       }
     });
+    $('seekerCount').addEventListener('change', updateStartButton);
     $('leaveBtn').addEventListener('click', leaveRoom);
     $('endBtn').addEventListener('click', function () { if (confirm('Zakończyć rundę?')) finishRoom('Host zakończył rundę.'); });
     $('copyCodeBtn').addEventListener('click', copyCode);

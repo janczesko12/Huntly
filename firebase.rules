@@ -39,6 +39,9 @@ service cloud.firestore {
           'hostUid', 'status', 'escapeSeconds', 'roundMinutes',
           'startedAtMs', 'escapeEndsAtMs', 'roundEndsAtMs',
           'revealEverySeconds', 'revealDurationSeconds', 'areaRadiusMeters',
+          'areaCenterLat', 'areaCenterLng', 'seekerCount',
+          'zoneShrinkEnabled', 'zoneFinalRadiusMeters',
+          'zoneShrinkStartAtMs', 'zoneShrinkDurationSeconds',
           'endedAt', 'updatedAt'
         ])
         && request.resource.data.status in ['lobby', 'escape', 'running', 'ended']
@@ -50,6 +53,7 @@ service cloud.firestore {
         allow get, list: if signedIn() && (playerId == request.auth.uid || isMember(roomId));
 
         allow create: if signedIn()
+          && get(roomPath(roomId)).data.status == 'lobby'
           && playerId == request.auth.uid
           && request.resource.data.uid == request.auth.uid
           && request.resource.data.role == (get(roomPath(roomId)).data.hostUid == request.auth.uid ? 'seeker' : 'runner')
@@ -62,14 +66,25 @@ service cloud.firestore {
           && request.resource.data.locationUpdatedAt == request.time
           && request.resource.data.onlineAt == request.time;
 
-        allow update: if signedIn()
-          && playerId == request.auth.uid
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'lat', 'lng', 'accuracy', 'outsideArea', 'locationUpdatedAt', 'onlineAt'
-          ])
-          && validCoordinates(request.resource.data)
-          && request.resource.data.locationUpdatedAt == request.time
-          && request.resource.data.onlineAt == request.time;
+        allow update: if signedIn() && (
+          (
+            playerId == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'lat', 'lng', 'accuracy', 'outsideArea', 'locationUpdatedAt', 'onlineAt'
+            ])
+            && validCoordinates(request.resource.data)
+            && request.resource.data.locationUpdatedAt == request.time
+            && request.resource.data.onlineAt == request.time
+          )
+          ||
+          (
+            isHost(roomId)
+            && get(roomPath(roomId)).data.status in ['lobby', 'escape']
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'alive'])
+            && request.resource.data.role in ['seeker', 'runner']
+            && request.resource.data.alive == true
+          )
+        );
 
         allow delete: if signedIn() && playerId == request.auth.uid;
       }
