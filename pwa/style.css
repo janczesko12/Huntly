@@ -490,3 +490,27 @@ footer a:hover { color: var(--forest); text-decoration: underline; }
   .start-sequence-overlay.is-role-stage .start-sequence-title { font-size: clamp(28px, 8.3vw, 43px); }
 }
 @media (prefers-reduced-motion: reduce) { .start-sequence-overlay, .start-sequence-card, .start-sequence-number { animation: none !important; transition: none !important; } }
+
+
+/* Lobby roster and explicit arena controls */
+.avatar-pending { color: #536a5b !important; background: #e8ece3 !important; border: 1px solid #d4ded0; }
+.arena-controls, .arena-readonly {
+  display: grid; gap: 11px; padding: 14px 15px;
+  border-top: 1px solid var(--line);
+  background: #f8f9f2;
+}
+.arena-controls-title { display: grid; gap: 4px; min-width: 0; }
+.arena-controls-title strong, .arena-readonly strong {
+  color: #56763e; font-size: 9px; font-weight: 950; letter-spacing: .13em;
+}
+.arena-controls-title span, .arena-readonly span {
+  color: #6c7971; font-size: 10px; line-height: 1.5; overflow-wrap: anywhere;
+}
+.arena-controls .button { margin: 0; min-height: 45px; }
+.arena-controls .button span { font-size: 18px; }
+.arena-controls p { margin: 0; color: #778279; font-size: 10px; line-height: 1.5; }
+.arena-readonly { display: flex; align-items: flex-start; flex-direction: column; gap: 5px; background: #f4f5ee; }
+@media (max-width: 600px) {
+  .arena-controls, .arena-readonly { padding: 12px; gap: 9px; }
+  .arena-controls .button { width: 100%; min-height: 48px; font-size: 12px; }
+}
