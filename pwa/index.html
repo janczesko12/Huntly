@@ -9,7 +9,7 @@
   <link rel="icon" href="./icon.jpg?v=20261022-selected-image" type="image/jpeg" sizes="192x192">
   <link rel="apple-touch-icon" href="./icon.jpg?v=20261022-selected-image">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="./style.css?v=20261024-scram-inspired-redesign">
+  <link rel="stylesheet" href="./style.css?v=20261024-start-sequence">
   <title>Huntly — Złap trop</title>
 </head>
 <body>
@@ -132,6 +132,19 @@
       <div class="game-footnote"><span class="pulse"></span> Pozycje synchronizowane co 10 s, gdy strona jest aktywna <span id="lastUpdate"></span></div>
     </section>
   </main>
+  <section id="startSequenceOverlay" class="start-sequence-overlay hidden" aria-hidden="true" aria-live="assertive" aria-label="Odliczanie do rozpoczęcia rundy">
+    <div class="start-sequence-glow start-sequence-glow-one" aria-hidden="true"></div>
+    <div class="start-sequence-glow start-sequence-glow-two" aria-hidden="true"></div>
+    <div class="start-sequence-card">
+      <div class="start-sequence-brand"><span class="start-sequence-brand-mark">H</span><span>HUNTLY<span class="start-sequence-brand-dot">.</span></span></div>
+      <div id="startSequenceKicker" class="start-sequence-kicker">HUNTLY • START ZA CHWILĘ</div>
+      <div id="startSequenceSymbol" class="start-sequence-symbol" aria-hidden="true">H</div>
+      <div id="startSequenceNumber" class="start-sequence-number">3</div>
+      <h2 id="startSequenceTitle" class="start-sequence-title">Przygotuj się</h2>
+      <p id="startSequenceMessage" class="start-sequence-message">Role zostały wylosowane. Za moment ruszamy.</p>
+      <div class="start-sequence-foot"><span>PLAY FAIR.</span><span>MOVE SMART.</span></div>
+    </div>
+  </section>
   <div id="toastRegion" class="toast-region" aria-live="polite"></div>
   <div id="busy" class="busy hidden"><div class="spinner"></div><strong id="busyText">Łączenie z Huntly…</strong><span>Chwilka, szykujemy rozgrywkę.</span></div>
   <footer><span>HUNTLY • GRAJ W TERENIE</span><span>PLAY FAIR. MOVE SMART.</span><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a></footer>
@@ -140,6 +153,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="./config.js"></script>
-  <script src="./app.js?v=20261023-native-capture"></script>
+  <script src="./app.js?v=20261024-start-sequence"></script>
 </body>
 </html>
