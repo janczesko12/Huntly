@@ -671,6 +671,7 @@
     $('gameActions').classList.remove('hidden');
     initMap();
     state.roomUnsub = ref.onSnapshot(function (snap) {
+      if (state.roomCode !== code) return;
       if (!snap.exists) {
         toast('Pokój już nie istnieje', 'Wrócono do ekranu głównego.', 'error');
         exitRoom(false);
@@ -701,8 +702,12 @@
       $('zoneFinalRadiusMeters').value = String(state.room.zoneFinalRadiusMeters || 100);
       updateStartButton();
       tickTimer();
-    }, function (error) { toast('Błąd synchronizacji pokoju', friendlyError(error), 'error'); });
+    }, function (error) {
+      if (state.roomCode !== code) return;
+      toast('Błąd synchronizacji pokoju', friendlyError(error), 'error');
+    });
     state.playersUnsub = ref.collection('players').onSnapshot(function (snap) {
+      if (state.roomCode !== code) return;
       state.players = snap.docs.map(function (doc) { const d = doc.data(); d.uid = doc.id; return d; });
       state.me = state.players.find(function (player) { return player.uid === state.uid; }) || state.me;
       if (state.me) sessionStore();
@@ -718,16 +723,25 @@
       updateStartButton();
       const runners = state.players.filter(function (p) { return p.role === 'runner' && p.alive !== false; }).length;
       if (state.room && state.room.status === 'running' && runners === 0) finishRoom('Szukający wygrywa — wszyscy uciekający zostali złapani.');
-    }, function (error) { toast('Nie udało się pobrać graczy', friendlyError(error), 'error'); });
+    }, function (error) {
+      // Firestore can report a queued permission error just as the current player leaves.
+      // Once we have switched rooms or returned home, ignore stale listener callbacks.
+      if (state.roomCode !== code) return;
+      toast('Nie udało się pobrać graczy', friendlyError(error), 'error');
+    });
     beginGps();
     if (state.refreshTimer) clearInterval(state.refreshTimer);
     state.refreshTimer = setInterval(function () {
+      if (state.roomCode !== code) return;
       ref.get().then(function (snap) {
+        if (state.roomCode !== code) return null;
         if (snap.exists) state.room = snap.data();
+        else { exitRoom(false); return null; }
         updateRoleBadge();
         updateArenaControls();
         return ref.collection('players').get();
       }).then(function (snap) {
+        if (state.roomCode !== code || !snap) return;
         state.players = snap.docs.map(function (doc) { const d = doc.data(); d.uid = doc.id; return d; });
         state.me = state.players.find(function (player) { return player.uid === state.uid; }) || state.me;
         syncPlayerCounts();
@@ -1149,14 +1163,31 @@
     const code = state.roomCode;
     if (!code) return;
     if (!confirm('Na pewno chcesz opuścić pokój?')) return;
+    const roomRef = state.db.collection('rooms').doc(code);
+    const playerRef = roomRef.collection('players').doc(state.uid);
     try {
-      const roomRef = state.db.collection('rooms').doc(code);
       const beforeLeave = await roomRef.get();
-      if (beforeLeave.exists && beforeLeave.data().status === 'lobby') {
-        const activityStamp = firebase.firestore.FieldValue.serverTimestamp();
-        await roomRef.update({ lastActivityAt: activityStamp, updatedAt: activityStamp });
+      if (!beforeLeave.exists || beforeLeave.data().status === 'expired') {
+        exitRoom(true);
+        return;
       }
-      await roomRef.collection('players').doc(state.uid).delete();
+      if (beforeLeave.data().status === 'lobby') {
+        const activityStamp = firebase.firestore.FieldValue.serverTimestamp();
+        try {
+          await roomRef.update({ lastActivityAt: activityStamp, updatedAt: activityStamp });
+        } catch (activityError) {
+          // Updating activity must not prevent a player from leaving a room.
+          console.warn('Could not refresh lobby activity while leaving:', activityError);
+        }
+      }
+
+      // Stop Firestore listeners before deleting our own membership document.
+      // The players query is only readable by room members, so otherwise it can
+      // immediately emit permission-denied while the player is being removed.
+      closeRoomListeners();
+      state.roomCode = null;
+
+      await playerRef.delete();
       const snap = await roomRef.get();
       if (snap.exists && snap.data().hostUid === state.uid) {
         const next = state.players.find(function (p) { return p.uid !== state.uid; });
@@ -1167,7 +1198,20 @@
         }
       }
       exitRoom(true);
-    } catch (error) { toast('Nie udało się opuścić pokoju', friendlyError(error), 'error'); }
+    } catch (error) {
+      // If the delete failed, reattach listeners only when this user is still a member.
+      let stillMember = false;
+      try {
+        const ownPlayer = await playerRef.get();
+        stillMember = ownPlayer.exists;
+      } catch (_) {}
+      if (stillMember) {
+        openRoom(code);
+      } else {
+        exitRoom(true);
+      }
+      toast('Nie udało się opuścić pokoju', friendlyError(error), 'error');
+    }
   }
   function exitRoom(clear) {
     closeRoomListeners();
