@@ -983,6 +983,7 @@
     overlay.classList.add('is-visible');
     overlay.setAttribute('aria-hidden', 'false');
     if (overlay.dataset.stageKey === stageKey) return;
+    const previousStageKey = overlay.dataset.stageKey || '';
     overlay.dataset.stageKey = stageKey;
 
     const kicker = $('startSequenceKicker');
@@ -990,6 +991,40 @@
     const title = $('startSequenceTitle');
     const message = $('startSequenceMessage');
     const symbol = $('startSequenceSymbol');
+
+    function replayRise(element) {
+      if (!element) return;
+      element.classList.remove('sequence-rise');
+      void element.offsetWidth;
+      element.classList.add('sequence-rise');
+    }
+
+    if (inCountdown) {
+      if (!previousStageKey.startsWith('count-')) {
+        replayRise(kicker);
+        replayRise(symbol);
+        replayRise(title);
+        replayRise(message);
+        const card = overlay.querySelector('.start-sequence-card');
+        if (card) {
+          card.classList.remove('sequence-card-rise');
+          void card.offsetWidth;
+          card.classList.add('sequence-card-rise');
+        }
+      }
+      replayRise(number);
+    } else {
+      // The personalized role announcement rises into view with a staggered entrance.
+      const card = overlay.querySelector('.start-sequence-card');
+      if (card) {
+        card.classList.remove('sequence-card-rise');
+        void card.offsetWidth;
+        card.classList.add('sequence-card-rise');
+      }
+      [kicker, symbol, title, message].forEach(function (element) {
+        replayRise(element);
+      });
+    }
 
     overlay.classList.toggle('is-role-stage', !inCountdown);
     overlay.classList.toggle('is-seeker', !inCountdown && isSeeker);
