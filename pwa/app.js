@@ -193,6 +193,34 @@
     return Number.isFinite(numeric) ? numeric : 0;
   }
 
+  function currentZoneRadius(room, now) {
+    if (!room) return 500;
+    now = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+
+    const startRadiusRaw = Number(room.areaRadiusMeters);
+    const startRadius = Number.isFinite(startRadiusRaw) && startRadiusRaw > 0
+      ? startRadiusRaw
+      : 500;
+
+    if (!room.zoneShrinkEnabled) return startRadius;
+
+    const finalRadiusRaw = Number(room.zoneFinalRadiusMeters);
+    const finalRadius = Math.min(
+      startRadius,
+      Math.max(50, Number.isFinite(finalRadiusRaw) && finalRadiusRaw > 0 ? finalRadiusRaw : 100)
+    );
+    const shrinkStart = timestampMillis(room.zoneShrinkStartAtMs);
+    const durationSeconds = Number(room.zoneShrinkDurationSeconds);
+    const durationMs = Number.isFinite(durationSeconds) && durationSeconds > 0
+      ? durationSeconds * 1000
+      : 0;
+
+    if (!shrinkStart || !durationMs || now <= shrinkStart) return startRadius;
+
+    const progress = Math.min(1, Math.max(0, (now - shrinkStart) / durationMs));
+    return Math.round(startRadius + (finalRadius - startRadius) * progress);
+  }
+
   function captureReadiness(seeker, runner, now) {
     now = typeof now === 'number' ? now : Date.now();
     const players = [{ data: seeker, label: 'Twój GPS' }, { data: runner, label: 'GPS uciekającego' }];
