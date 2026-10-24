@@ -514,3 +514,45 @@ footer a:hover { color: var(--forest); text-decoration: underline; }
   .arena-controls, .arena-readonly { padding: 12px; gap: 9px; }
   .arena-controls .button { width: 100%; min-height: 48px; font-size: 12px; }
 }
+
+
+/* Smooth motion: ambient glows drift upward and every countdown/role stage rises in */
+.start-sequence-glow-one { animation: start-glow-float-one 9s ease-in-out infinite alternate; }
+.start-sequence-glow-two { animation: start-glow-float-two 11s ease-in-out infinite alternate; }
+.start-sequence-card.sequence-card-rise { animation: start-card-rise .72s cubic-bezier(.16,1,.3,1) both; }
+.start-sequence-kicker.sequence-rise { animation: start-element-rise .56s cubic-bezier(.16,1,.3,1) both; }
+.start-sequence-symbol.sequence-rise { animation: start-element-rise .62s cubic-bezier(.16,1,.3,1) both; }
+.start-sequence-title.sequence-rise { animation: start-element-rise .74s cubic-bezier(.16,1,.3,1) both; animation-delay: .06s; }
+.start-sequence-message.sequence-rise { animation: start-element-rise .8s cubic-bezier(.16,1,.3,1) both; animation-delay: .13s; }
+.start-sequence-number.sequence-rise { animation: start-number-rise .55s cubic-bezier(.16,1,.3,1) both; }
+@keyframes start-card-rise {
+  0% { opacity: .35; transform: translate3d(0, 42px, 0) scale(.975); filter: blur(3px); }
+  68% { opacity: 1; transform: translate3d(0, -3px, 0) scale(1.005); filter: blur(0); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0); }
+}
+@keyframes start-element-rise {
+  0% { opacity: 0; transform: translate3d(0, 30px, 0); filter: blur(4px); }
+  72% { opacity: 1; transform: translate3d(0, -3px, 0); filter: blur(0); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0); filter: blur(0); }
+}
+@keyframes start-number-rise {
+  0% { opacity: 0; transform: translate3d(0, 48px, 0) scale(.84); filter: blur(5px); }
+  70% { opacity: 1; transform: translate3d(0, -5px, 0) scale(1.035); filter: blur(0); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0); }
+}
+@keyframes start-glow-float-one {
+  0% { transform: translate3d(0, 18px, 0) scale(.96); opacity: .66; }
+  100% { transform: translate3d(10px, -30px, 0) scale(1.05); opacity: 1; }
+}
+@keyframes start-glow-float-two {
+  0% { transform: translate3d(0, 22px, 0) scale(1.18); opacity: .55; }
+  100% { transform: translate3d(-12px, -24px, 0) scale(1.3); opacity: .95; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .start-sequence-glow-one, .start-sequence-glow-two,
+  .start-sequence-card.sequence-card-rise, .start-sequence-kicker.sequence-rise,
+  .start-sequence-symbol.sequence-rise, .start-sequence-title.sequence-rise,
+  .start-sequence-message.sequence-rise, .start-sequence-number.sequence-rise {
+    animation: none !important;
+  }
+}
