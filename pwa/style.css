@@ -556,3 +556,50 @@ footer a:hover { color: var(--forest); text-decoration: underline; }
     animation: none !important;
   }
 }
+
+
+/* Visible player dots on the map: pin center = exact GPS coordinate, name below */
+.huntly-marker-shell {
+  background: transparent !important;
+  border: 0 !important;
+  overflow: visible !important;
+}
+.huntly-marker {
+  position: absolute;
+  top: 11px;
+  left: 11px;
+  display: block;
+  width: 17px;
+  height: 17px;
+  box-sizing: border-box;
+  border: 3px solid #fffefa;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 2px 7px rgba(23,37,31,.42), 0 0 0 1.5px rgba(23,37,31,.42);
+  z-index: 2;
+}
+.huntly-marker.marker-seeker { background: #e56e51; }
+.huntly-marker.marker-runner { background: #87b94e; }
+.huntly-marker.marker-you { background: #254f80; }
+.marker-label {
+  position: absolute;
+  top: 22px;
+  left: 11px;
+  display: block;
+  max-width: 150px;
+  padding: 3px 7px;
+  overflow: hidden;
+  border: 1px solid rgba(24,61,48,.18);
+  border-radius: 7px;
+  color: #183d30;
+  background: rgba(255,254,250,.97);
+  box-shadow: 0 2px 7px rgba(23,37,31,.18);
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.35;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  z-index: 1;
+}
