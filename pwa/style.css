@@ -603,3 +603,79 @@ footer a:hover { color: var(--forest); text-decoration: underline; }
   transform: translateX(-50%);
   z-index: 1;
 }
+
+
+/* Mobile viewport hardening: keep every page section aligned to the device width */
+html, body {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+body { overflow-x: clip; }
+.topbar, main.shell, footer {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1220px;
+}
+.hero, .game-view, .panel-grid, .panel, .location-gate, .game-layout, .side-panel {
+  min-width: 0;
+}
+.panel-grid > *, .game-layout > *, .side-panel > * {
+  min-width: 0;
+  max-width: 100%;
+}
+@media (max-width: 600px) {
+  html, body {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+  .topbar, main.shell, footer {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  .brand { flex: 1 1 auto; min-width: 0; gap: 8px; }
+  .brand > span:last-child { min-width: 0; }
+  .connection {
+    flex: 0 1 auto;
+    max-width: 46%;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .connection #connectionText { overflow: hidden; text-overflow: ellipsis; }
+  main.shell { padding-left: 14px; padding-right: 14px; }
+  #welcome, #game, .hero-copy, .panel-grid, .panel, .location-gate {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .panel-grid { grid-template-columns: minmax(0, 1fr); }
+  .panel { overflow-wrap: anywhere; }
+  .panel input, .panel select, .panel .button, .location-gate .button {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .hero-description { max-width: 100%; }
+  .feature-pills span { max-width: 100%; white-space: normal; }
+  .radar-wrap { max-width: 70vw; }
+  footer { padding-left: 14px; padding-right: 14px; }
+}
+@media (max-width: 370px) {
+  .topbar { gap: 7px; padding-left: 10px; padding-right: 10px; }
+  .brand { font-size: 13px; }
+  .brand small { font-size: 6px; letter-spacing: .07em; }
+  .connection { max-width: 43%; padding: 7px; font-size: 8px; }
+  main.shell { padding-left: 10px; padding-right: 10px; }
+}
